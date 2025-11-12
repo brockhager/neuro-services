@@ -2,6 +2,14 @@
 
 The Neuro Services layer provides a secure, type-safe API for interacting with the NeuroSwarm ecosystem. This document outlines the key interfaces and data structures used throughout the services.
 
+## Quick Start
+
+- **[Getting Started](../../getting-started.md)** - Setup and run the services API
+- **[Development Guide](../../development.md)** - API development workflow and standards
+- **[Observability Setup](./observability.md)** - Monitoring and metrics configuration
+
+## Core Interfaces
+
 ## Core Interfaces
 
 ### User
@@ -161,6 +169,13 @@ When extending the API:
 3. Add comprehensive tests for new endpoints
 4. Include authentication where sensitive data is accessed
 5. Log security events for observability
+
+### Related Documentation
+
+- **[API Authentication](../../development.md#authentication)** - JWT token implementation details
+- **[Testing Practices](../../development.md#testing)** - API testing guidelines
+- **[Security Guidelines](../../SECURITY-TRUST.md)** - Security considerations for API development
+- **[Observability Setup](./observability.md)** - Metrics and monitoring for APIs
 
 ## Security
 

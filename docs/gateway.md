@@ -2,6 +2,12 @@
 
 The Gateway API provides external services and applications with a clean REST interface to query NeuroSwarm node state, provenance, and confidence scores.
 
+## Quick Start
+
+- **[Getting Started](../../getting-started.md)** - Setup and run the gateway API
+- **[API Reference](./services.md)** - Complete interface definitions and authentication
+- **[Development Guide](../../development.md)** - Gateway development workflow
+
 ## Endpoints
 
 ### GET /v1/manifests/{cid}

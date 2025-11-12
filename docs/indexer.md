@@ -2,6 +2,12 @@
 
 The Indexer provides advanced search, lineage queries, and confidence scoring across NeuroSwarm manifests and attestations.
 
+## Quick Start
+
+- **[Getting Started](../../getting-started.md)** - Setup and run the indexer service
+- **[API Reference](./services.md)** - Complete interface definitions and data structures
+- **[Development Guide](../../development.md)** - Indexer development workflow
+
 ## Architecture
 
 - **Local Index**: In-memory index of manifests with metadata, tags, and relationships

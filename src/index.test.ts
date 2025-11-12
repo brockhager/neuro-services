@@ -1,11 +1,19 @@
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+import { Server } from "http";
 import request from "supertest";
 import app from "./index";
 
-let server: any;
+let server: Server;
+let authToken: string;
 
-beforeAll((done) => {
-  server = app.listen(0, () => done()); // Use port 0 for auto-assignment
+beforeAll(async () => {
+  server = app.listen(0);
+
+  // Login to get token
+  const loginResponse = await request(app)
+    .post("/auth/login")
+    .send({ username: "admin", password: "password" });
+  authToken = loginResponse.body.token;
 });
 
 afterAll((done) => {
@@ -25,19 +33,25 @@ describe("Gateway API", () => {
   });
 
   it("should return attestations", async () => {
-    const response = await request(app).get("/v1/attestations/QmTest123");
+    const response = await request(app)
+      .get("/v1/attestations/QmTest123")
+      .set("Authorization", `Bearer ${authToken}`);
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body.attestations)).toBe(true);
   });
 
   it("should return peers", async () => {
-    const response = await request(app).get("/v1/peers");
+    const response = await request(app)
+      .get("/v1/peers")
+      .set("Authorization", `Bearer ${authToken}`);
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body.peers)).toBe(true);
   });
 
   it("should return metrics", async () => {
-    const response = await request(app).get("/v1/metrics");
+    const response = await request(app)
+      .get("/v1/metrics")
+      .set("Authorization", `Bearer ${authToken}`);
     expect(response.status).toBe(200);
     expect(response.body.catalogSize).toBeDefined();
   });

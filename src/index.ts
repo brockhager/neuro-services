@@ -77,6 +77,7 @@ app.use(limiter);
 const authenticate = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
   if (!token) {
+    console.log(`[AUTH] Access denied: missing token from ${req.ip} for ${req.path}`);
     return res.status(401).json({ error: "Access denied" });
   }
   try {
@@ -84,6 +85,7 @@ const authenticate = (req: express.Request, res: express.Response, next: express
     (req as express.Request & { user: User }).user = verified;
     next();
   } catch (error) {
+    console.log(`[AUTH] Invalid token from ${req.ip} for ${req.path}: ${error}`);
     res.status(400).json({ error: "Invalid token" });
   }
 };
@@ -149,6 +151,8 @@ app.get("/v1/attestations/:cid", authenticate, (req, res) => {
 });
 
 app.get("/v1/peers", authenticate, (req, res) => {
+  const user = (req as express.Request & { user: User }).user;
+  console.log(`[PEERS] Access by ${user.username} from ${req.ip}`);
   res.json({ peers: mockPeers });
 });
 

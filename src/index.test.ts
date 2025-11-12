@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import { Server } from "http";
 import request from "supertest";
+import jwt from "jsonwebtoken";
 import app from "./index";
 
 let server: Server;
 let authToken: string;
+const JWT_SECRET = process.env.JWT_SECRET || "default-secret";
 
 beforeAll(async () => {
   server = app.listen(0);
@@ -83,5 +85,28 @@ describe("Gateway API", () => {
   it("should return 404 for unknown confidence", async () => {
     const response = await request(app).get("/v1/index/confidence/unknown");
     expect(response.status).toBe(404);
+  });
+
+  it("should reject invalid token", async () => {
+    const response = await request(app)
+      .get("/v1/attestations/QmTest123")
+      .set("Authorization", "Bearer invalid-token");
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe("Invalid token");
+  });
+
+  it("should reject expired token", async () => {
+    const expiredToken = jwt.sign({ username: "admin" }, JWT_SECRET, { expiresIn: "-1h" });
+    const response = await request(app)
+      .get("/v1/peers")
+      .set("Authorization", `Bearer ${expiredToken}`);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe("Invalid token");
+  });
+
+  it("should reject missing token", async () => {
+    const response = await request(app).get("/v1/metrics");
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe("Access denied");
   });
 });

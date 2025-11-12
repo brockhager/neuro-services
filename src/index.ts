@@ -77,9 +77,75 @@ app.get("/v1/metrics", (req, res) => {
   res.json(mockMetrics);
 });
 
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+// Mock index data
+const mockIndex: Record<string, any> = {
+  "QmTest123": {
+    cid: "QmTest123",
+    content: "neural network model data",
+    tags: ["ai", "model"],
+    lineage: ["QmParent1", "QmParent2"],
+    confidence: 92,
+  },
+  "QmParent1": {
+    cid: "QmParent1",
+    content: "training dataset",
+    tags: ["data", "training"],
+    lineage: [],
+    confidence: 95,
+  },
+};
+
+const mockLineage: Record<string, any[]> = {
+  "QmTest123": [
+    { cid: "QmTest123", type: "manifest", timestamp: Date.now() },
+    { cid: "QmAttest1", type: "attestation", validator: "val1", confidence: 95 },
+    { cid: "QmParent1", type: "dependency", relation: "trained_on" },
+  ],
+};
+
+// Indexer routes
+app.get("/v1/index/search", (req, res) => {
+  const { q, tag } = req.query;
+  let results = Object.values(mockIndex);
+
+  if (q) {
+    results = results.filter((item: any) =>
+      item.content.toLowerCase().includes((q as string).toLowerCase())
+    );
+  }
+
+  if (tag) {
+    results = results.filter((item: any) => item.tags.includes(tag));
+  }
+
+  res.json({ results, total: results.length });
+});
+
+app.get("/v1/index/lineage/:cid", (req, res) => {
+  const { cid } = req.params;
+  const lineage = mockLineage[cid] || [];
+  res.json({ lineage });
+});
+
+app.get("/v1/index/confidence/:cid", (req, res) => {
+  const { cid } = req.params;
+  const item = mockIndex[cid];
+  if (!item) {
+    return res.status(404).json({ error: "Item not found" });
+  }
+
+  // Aggregate confidence from attestations
+  const attestations = mockAttestations[cid] || [];
+  const avgConfidence = attestations.length > 0
+    ? attestations.reduce((sum: number, att: any) => sum + att.confidence, 0) / attestations.length
+    : 0;
+
+  res.json({
+    cid,
+    overallConfidence: Math.round(avgConfidence),
+    attestationCount: attestations.length,
+    anchoringStatus: item.confidence > 90 ? "high" : "medium",
+  });
 });
 
 app.listen(port, () => {

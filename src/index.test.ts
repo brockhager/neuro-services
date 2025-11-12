@@ -1,6 +1,16 @@
-import { describe, it, expect } from "@jest/globals";
+import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import request from "supertest";
 import app from "./index";
+
+let server: any;
+
+beforeAll((done) => {
+  server = app.listen(0, () => done()); // Use port 0 for auto-assignment
+});
+
+afterAll((done) => {
+  server.close(done);
+});
 
 describe("Gateway API", () => {
   it("should return manifest data", async () => {
@@ -32,9 +42,32 @@ describe("Gateway API", () => {
     expect(response.body.catalogSize).toBeDefined();
   });
 
-  it("should return health status", async () => {
-    const response = await request(app).get("/health");
+  it("should search index", async () => {
+    const response = await request(app).get("/v1/index/search?q=neural");
     expect(response.status).toBe(200);
-    expect(response.body.status).toBe("ok");
+    expect(response.body.results.length).toBeGreaterThan(0);
+  });
+
+  it("should search by tag", async () => {
+    const response = await request(app).get("/v1/index/search?tag=ai");
+    expect(response.status).toBe(200);
+    expect(response.body.results.length).toBeGreaterThan(0);
+  });
+
+  it("should return lineage", async () => {
+    const response = await request(app).get("/v1/index/lineage/QmTest123");
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body.lineage)).toBe(true);
+  });
+
+  it("should return confidence score", async () => {
+    const response = await request(app).get("/v1/index/confidence/QmTest123");
+    expect(response.status).toBe(200);
+    expect(response.body.overallConfidence).toBeDefined();
+  });
+
+  it("should return 404 for unknown confidence", async () => {
+    const response = await request(app).get("/v1/index/confidence/unknown");
+    expect(response.status).toBe(404);
   });
 });

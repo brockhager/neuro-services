@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
+import { collectDefaultMetrics, register, Counter, Histogram } from "prom-client";
 
 interface User {
   username: string;
@@ -56,6 +57,34 @@ interface LineageItem {
   relation?: string;
 }
 
+// Prometheus metrics
+collectDefaultMetrics();
+
+const authFailures = new Counter({
+  name: 'neuroswarm_auth_failures_total',
+  help: 'Total number of authentication failures',
+  labelNames: ['type']
+});
+
+const apiRequests = new Counter({
+  name: 'neuroswarm_api_requests_total',
+  help: 'Total number of API requests',
+  labelNames: ['method', 'endpoint', 'status']
+});
+
+const apiRequestDuration = new Histogram({
+  name: 'neuroswarm_api_request_duration_seconds',
+  help: 'Duration of API requests in seconds',
+  labelNames: ['method', 'endpoint'],
+  buckets: [0.1, 0.5, 1, 2, 5]
+});
+
+const peerAccess = new Counter({
+  name: 'neuroswarm_peer_access_total',
+  help: 'Total number of peer list accesses',
+  labelNames: ['username']
+});
+
 const app = express();
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "default-secret";
@@ -73,11 +102,30 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Metrics middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    apiRequests.inc({
+      method: req.method,
+      endpoint: req.route?.path || req.path,
+      status: res.statusCode.toString()
+    });
+    apiRequestDuration.observe({
+      method: req.method,
+      endpoint: req.route?.path || req.path
+    }, duration);
+  });
+  next();
+});
+
 // Auth middleware
 const authenticate = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
   if (!token) {
     console.log(`[AUTH] Access denied: missing token from ${req.ip} for ${req.path}`);
+    authFailures.inc({ type: 'missing_token' });
     return res.status(401).json({ error: "Access denied" });
   }
   try {
@@ -86,6 +134,7 @@ const authenticate = (req: express.Request, res: express.Response, next: express
     next();
   } catch (error) {
     console.log(`[AUTH] Invalid token from ${req.ip} for ${req.path}: ${error}`);
+    authFailures.inc({ type: 'invalid_token' });
     res.status(400).json({ error: "Invalid token" });
   }
 };
@@ -153,6 +202,7 @@ app.get("/v1/attestations/:cid", authenticate, (req, res) => {
 app.get("/v1/peers", authenticate, (req, res) => {
   const user = (req as express.Request & { user: User }).user;
   console.log(`[PEERS] Access by ${user.username} from ${req.ip}`);
+  peerAccess.inc({ username: user.username });
   res.json({ peers: mockPeers });
 });
 
@@ -229,6 +279,17 @@ app.get("/v1/index/confidence/:cid", (req, res) => {
     attestationCount: attestations.length,
     anchoringStatus: item.confidence > 90 ? "high" : "medium",
   });
+});
+
+// Metrics endpoint for Prometheus
+app.get("/metrics", async (req, res) => {
+  try {
+    const metrics = await register.metrics();
+    res.set('Content-Type', register.contentType);
+    res.end(metrics);
+  } catch (ex) {
+    res.status(500).end(ex);
+  }
 });
 
 app.listen(port, () => {

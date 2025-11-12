@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  neuro-infra:
+    build: ../neuro-infra
+    ports:
+      - "8080:8080"
+    volumes:
+      - infra-data:/app/data
+    environment:
+      - RUST_LOG=info
+    networks:
+      - neuroswarm
+
+  neuro-services:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - neuro-infra
+    networks:
+      - neuroswarm
+
+volumes:
+  infra-data:
+
+networks:
+  neuroswarm:
+    driver: bridge

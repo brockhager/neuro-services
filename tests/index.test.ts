@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import { Server } from "http";
 import request from "supertest";
 import jwt from "jsonwebtoken";
-import app from "./index";
+import app from "../src/index";
 
 let server: Server;
 let authToken: string;

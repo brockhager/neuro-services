@@ -5,6 +5,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import { collectDefaultMetrics, register, Counter, Histogram } from "prom-client";
+import { AgentRegistryService } from "./agent-registry";
 
 interface User {
   username: string;
@@ -84,6 +85,14 @@ const peerAccess = new Counter({
   help: 'Total number of peer list accesses',
   labelNames: ['username']
 });
+
+// Agent Registry Service
+const agentRegistry = new AgentRegistryService();
+
+// Periodic cleanup of inactive agents
+setInterval(() => {
+  agentRegistry.cleanup();
+}, 60000); // Clean up every minute
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -279,6 +288,124 @@ app.get("/v1/index/confidence/:cid", (req, res) => {
     attestationCount: attestations.length,
     anchoringStatus: item.confidence > 90 ? "high" : "medium",
   });
+});
+
+// Agent Registry API endpoints
+app.post("/v1/agents/register", async (req, res) => {
+  try {
+    const registrationRequest = req.body;
+    const result = await agentRegistry.registerAgent(registrationRequest);
+    if (result.success) {
+      res.status(201).json({ agentId: result.agentId });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error('Agent registration error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post("/v1/agents/:agentId/heartbeat", async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const result = await agentRegistry.updateAgentHeartbeat(agentId);
+    if (result.success) {
+      res.json({ status: 'ok' });
+    } else {
+      res.status(404).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error('Agent heartbeat error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get("/v1/agents/discover", async (req, res) => {
+  try {
+    const query = req.query;
+    const result = await agentRegistry.discoverAgents(query);
+    res.json(result);
+  } catch (error) {
+    console.error('Agent discovery error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get("/v1/agents/:agentId", async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const agent = await agentRegistry.getAgent(agentId);
+    if (agent) {
+      res.json(agent);
+    } else {
+      res.status(404).json({ error: 'Agent not found' });
+    }
+  } catch (error) {
+    console.error('Agent retrieval error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.put("/v1/agents/:agentId", async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const updates = req.body;
+    const result = await agentRegistry.updateAgent(agentId, updates);
+    if (result.success) {
+      res.json({ status: 'updated' });
+    } else {
+      res.status(404).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error('Agent update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete("/v1/agents/:agentId", async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const result = await agentRegistry.removeAgent(agentId);
+    if (result.success) {
+      res.json({ status: 'removed' });
+    } else {
+      res.status(404).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error('Agent removal error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post("/v1/swarms/coordinate", async (req, res) => {
+  try {
+    const coordinationRequest = req.body;
+    const result = await agentRegistry.coordinateSwarm(coordinationRequest);
+    if (result.success) {
+      res.status(201).json({ swarm: result.swarm });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error('Swarm coordination error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get("/v1/swarms/:swarmId", async (req, res) => {
+  try {
+    const { swarmId } = req.params;
+    const swarm = await agentRegistry.getSwarm(swarmId);
+    if (swarm) {
+      res.json(swarm);
+    } else {
+      res.status(404).json({ error: 'Swarm not found' });
+    }
+  } catch (error) {
+    console.error('Swarm retrieval error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Metrics endpoint for Prometheus

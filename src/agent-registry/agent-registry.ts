@@ -6,7 +6,7 @@ export interface AgentCapability {
   description: string;
   category: AgentCategory;
   version: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, string | number | boolean>;
   performance: {
     accuracy: number;
     latency: number;
@@ -19,7 +19,7 @@ export interface AgentEndpoint {
   url: string;
   authentication: {
     type: 'bearer' | 'api-key' | 'oauth2';
-    credentials?: Record<string, any>;
+    credentials?: Record<string, string>;
   };
   healthCheck: {
     path: string;
@@ -101,10 +101,14 @@ export class AgentRegistry extends EventEmitter {
   private agents: Map<string, AgentRegistration> = new Map();
   private healthStatus: Map<string, AgentHealthStatus> = new Map();
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private heartbeatHistory: Map<string, Date[]> = new Map(); // Track recent heartbeats for anomaly detection
+  private missedHeartbeats: Map<string, number> = new Map(); // Track consecutive missed heartbeats
 
   constructor(
     private heartbeatIntervalMs: number = 30000, // 30 seconds
-    private healthCheckTimeoutMs: number = 5000   // 5 seconds
+    private healthCheckTimeoutMs: number = 5000,   // 5 seconds
+    private jitterToleranceMs: number = 5000,      // 5 seconds jitter tolerance
+    private gracePeriodMisses: number = 2          // Allow 2 missed heartbeats before marking offline
   ) {
     super();
     this.startHeartbeatMonitoring();
@@ -199,14 +203,48 @@ export class AgentRegistry extends EventEmitter {
       throw new Error(`Agent ${agentId} not found`);
     }
 
-    agent.lastHeartbeat = new Date();
+    const now = new Date();
+    const previousHeartbeat = agent.lastHeartbeat;
+
+    agent.lastHeartbeat = now;
+
+    // Track heartbeat history for anomaly detection (keep last 10 heartbeats)
+    const history = this.heartbeatHistory.get(agentId) || [];
+    history.push(now);
+    if (history.length > 10) {
+      history.shift();
+    }
+    this.heartbeatHistory.set(agentId, history);
+
+    // Reset missed heartbeats counter
+    this.missedHeartbeats.set(agentId, 0);
+
+    // Detect heartbeat anomalies
+    if (history.length >= 2) {
+      const intervals = [];
+      for (let i = 1; i < history.length; i++) {
+        intervals.push(history[i].getTime() - history[i - 1].getTime());
+      }
+
+      const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+      const lastInterval = now.getTime() - previousHeartbeat.getTime();
+
+      // Check for irregular heartbeat timing (more than 50% deviation from average)
+      if (Math.abs(lastInterval - avgInterval) > avgInterval * 0.5) {
+        this.logHeartbeatAnomaly(agentId, 'irregular_timing', {
+          expectedInterval: avgInterval,
+          actualInterval: lastInterval,
+          deviation: Math.abs(lastInterval - avgInterval) / avgInterval
+        });
+      }
+    }
 
     // Activate agent if it was registering
     if (agent.status === 'registering') {
       this.updateAgentStatus(agentId, 'active');
     }
 
-    this.emit('agentHeartbeat', { agentId, timestamp: agent.lastHeartbeat });
+    this.emit('agentHeartbeat', { agentId, timestamp: now });
   }
 
   /**
@@ -363,12 +401,40 @@ export class AgentRegistry extends EventEmitter {
   private startHeartbeatMonitoring(): void {
     this.heartbeatInterval = setInterval(() => {
       const now = Date.now();
-      const timeoutThreshold = now - (this.heartbeatIntervalMs * 3); // 3x interval
 
       for (const [agentId, agent] of this.agents) {
-        if (agent.status === 'active' && agent.lastHeartbeat.getTime() < timeoutThreshold) {
-          this.updateAgentStatus(agentId, 'inactive');
-          this.emit('agentTimeout', { agentId, lastHeartbeat: agent.lastHeartbeat });
+        if (agent.status === 'active') {
+          const timeSinceLastHeartbeat = now - agent.lastHeartbeat.getTime();
+          const expectedInterval = this.heartbeatIntervalMs;
+          const toleranceWindow = expectedInterval + this.jitterToleranceMs;
+
+          if (timeSinceLastHeartbeat > toleranceWindow) {
+            // Increment missed heartbeats
+            const missed = (this.missedHeartbeats.get(agentId) || 0) + 1;
+            this.missedHeartbeats.set(agentId, missed);
+
+            // Log anomaly for delayed heartbeat
+            this.logHeartbeatAnomaly(agentId, 'delayed_heartbeat', {
+              timeSinceLastHeartbeat,
+              expectedInterval,
+              toleranceWindow,
+              missedCount: missed
+            });
+
+            // Only mark as inactive after grace period (multiple missed heartbeats)
+            if (missed >= this.gracePeriodMisses) {
+              this.updateAgentStatus(agentId, 'inactive');
+              this.emit('agentTimeout', {
+                agentId,
+                lastHeartbeat: agent.lastHeartbeat,
+                missedHeartbeats: missed,
+                timeSinceLastHeartbeat
+              });
+            }
+          } else {
+            // Reset missed counter if heartbeat is on time
+            this.missedHeartbeats.set(agentId, 0);
+          }
         }
       }
     }, this.heartbeatIntervalMs);
@@ -385,12 +451,31 @@ export class AgentRegistry extends EventEmitter {
   }
 
   /**
-   * Clean up resources
+   * Log heartbeat anomalies for transparency
+   */
+  private logHeartbeatAnomaly(agentId: string, anomalyType: string, details: Record<string, unknown>): void {
+    const anomalyLog = {
+      agentId,
+      anomalyType,
+      timestamp: new Date(),
+      details
+    };
+
+    this.emit('heartbeatAnomaly', anomalyLog);
+
+    // In production, this would be written to monitoring logs
+    console.log('Heartbeat Anomaly:', JSON.stringify(anomalyLog, null, 2));
+  }
+
+  /**
+   * Clean up resources and stop monitoring
    */
   destroy(): void {
     this.stopHeartbeatMonitoring();
     this.agents.clear();
     this.healthStatus.clear();
+    this.heartbeatHistory.clear();
+    this.missedHeartbeats.clear();
     this.removeAllListeners();
   }
 }

@@ -1,7 +1,6 @@
 import {
   AgentRegistry,
   AgentDiscoveryService,
-  AgentRegistration,
   AgentCapability,
   AgentEndpoint,
   AgentMetadata,

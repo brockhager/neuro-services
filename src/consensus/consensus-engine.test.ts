@@ -174,9 +174,7 @@ describe('Consensus Engine Integration', () => {
       const proposalId = await consensus.proposeValidation(proposal);
 
       // Mock consensus reached event
-      let consensusReached = false;
       consensus.on('consensusReached', (result) => {
-        consensusReached = true;
         expect(result.outcome).toBe('approved');
         expect(result.quorumReached).toBe(true);
         expect(result.thresholdMet).toBe(true);

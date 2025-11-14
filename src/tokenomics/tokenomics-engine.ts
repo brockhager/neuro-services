@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { SecureCommunicationFramework } from '../communication';
+import { SecureCommunicationFramework, SecureMessage } from '../communication';
 import { AgentRegistry } from '../agent-registry/index';
 
 export interface FundingProposal {
@@ -41,7 +41,7 @@ export interface EconomicParameters {
 
 export interface Evidence {
   type: string;
-  data: any;
+  data: Record<string, unknown>;
   timestamp: Date;
   source: string;
 }
@@ -93,8 +93,35 @@ export class TokenomicsEngine extends EventEmitter {
       throw new Error('Requested amount must be positive');
     }
 
-    if (proposal.deadline <= new Date()) {
+    // Enhanced deadline validation with edge cases
+    const now = new Date();
+    if (proposal.deadline <= now) {
+      await this.logGovernanceEvent('deadline_validation', {
+        event: 'proposal_deadline_past',
+        proposalId,
+        deadline: proposal.deadline,
+        currentTime: now,
+        details: 'Proposal deadline must be in the future'
+      });
       throw new Error('Proposal deadline must be in the future');
+    }
+
+    // Check for overlapping deadlines (within 1 hour)
+    const overlappingProposals = Array.from(this.proposals.values()).filter(p =>
+      Math.abs(p.deadline.getTime() - proposal.deadline.getTime()) < 3600000 && // 1 hour
+      p.proposerId === proposal.proposerId
+    );
+
+    if (overlappingProposals.length > 0) {
+      await this.logGovernanceEvent('deadline_validation', {
+        event: 'overlapping_deadlines',
+        proposalId,
+        overlappingProposalIds: overlappingProposals.map(p => p.id),
+        deadline: proposal.deadline,
+        details: 'Proposer has overlapping proposal deadlines'
+      });
+      // Allow but log warning
+      this.emit('overlappingDeadlines', { newProposal: fullProposal, overlapping: overlappingProposals });
     }
 
     // Store proposal
@@ -104,6 +131,13 @@ export class TokenomicsEngine extends EventEmitter {
 
     // Broadcast proposal to all registered agents
     await this.broadcastFundingProposal(fullProposal);
+
+    await this.logGovernanceEvent('proposal_submitted', {
+      proposalId,
+      proposerId: proposal.proposerId,
+      deadline: proposal.deadline,
+      requestedAmount: proposal.requestedAmount
+    });
 
     this.emit('proposalSubmitted', fullProposal);
     return proposalId;
@@ -118,9 +152,30 @@ export class TokenomicsEngine extends EventEmitter {
       throw new Error(`Proposal ${contribution.proposalId} not found`);
     }
 
-    // Check if contribution period is still open
-    if (new Date() > proposal.deadline) {
+    const now = new Date();
+    // Enhanced deadline validation for contributions
+    if (now > proposal.deadline) {
+      await this.logGovernanceEvent('deadline_validation', {
+        event: 'late_contribution_attempt',
+        proposalId: contribution.proposalId,
+        contributorId: contribution.contributorId,
+        deadline: proposal.deadline,
+        attemptTime: now,
+        details: 'Contribution attempted after deadline'
+      });
       throw new Error(`Contribution period expired for proposal ${contribution.proposalId}`);
+    }
+
+    // Boundary case: allow contributions exactly at deadline (within 1 second)
+    if (Math.abs(now.getTime() - proposal.deadline.getTime()) <= 1000) {
+      await this.logGovernanceEvent('deadline_validation', {
+        event: 'boundary_contribution',
+        proposalId: contribution.proposalId,
+        contributorId: contribution.contributorId,
+        deadline: proposal.deadline,
+        contributionTime: now,
+        details: 'Contribution at deadline boundary'
+      });
     }
 
     // Validate contribution amount
@@ -322,7 +377,6 @@ export class TokenomicsEngine extends EventEmitter {
     };
 
     // Sign the log entry (simplified - in production would use proper crypto)
-    const logMessage = JSON.stringify(logEntry);
     // In a real implementation, this would be signed and stored in a blockchain
 
     // Emit for governance dashboard logging
@@ -333,14 +387,31 @@ export class TokenomicsEngine extends EventEmitter {
   }
 
   /**
+   * Log governance events for deadline validation and other important events
+   */
+  private async logGovernanceEvent(eventType: string, eventData: Record<string, unknown>): Promise<void> {
+    const governanceLog = {
+      eventType,
+      timestamp: new Date(),
+      ...eventData
+    };
+
+    // Emit for governance dashboard and logging systems
+    this.emit('governanceEvent', governanceLog);
+
+    // In production, this would be written to a secure log file or blockchain
+    console.log('Governance Event:', JSON.stringify(governanceLog, null, 2));
+  }
+
+  /**
    * Handle incoming funding messages
    */
-  private async handleFundingMessage(message: any): Promise<void> {
+  private async handleFundingMessage(message: SecureMessage): Promise<void> {
     try {
       const { type, proposal, contribution, result } = message.payload;
 
       switch (type) {
-        case 'funding_proposal':
+        case 'funding_proposal': {
           // Store remote proposal
           if (!this.proposals.has(proposal.id)) {
             this.proposals.set(proposal.id, proposal);
@@ -349,8 +420,9 @@ export class TokenomicsEngine extends EventEmitter {
             this.emit('remoteProposalReceived', proposal);
           }
           break;
+        }
 
-        case 'funding_contribution':
+        case 'funding_contribution': {
           // Store remote contribution
           const existingContributions = this.contributions.get(contribution.proposalId) || [];
           const duplicateContribution = existingContributions.find(
@@ -362,12 +434,14 @@ export class TokenomicsEngine extends EventEmitter {
             this.emit('remoteContributionReceived', contribution);
           }
           break;
+        }
 
-        case 'funding_result':
+        case 'funding_result': {
           // Store remote result
           this.fundingResults.set(result.proposalId, result);
           this.emit('remoteFundingResultReceived', result);
           break;
+        }
       }
     } catch (error) {
       this.emit('fundingMessageError', { message, error });

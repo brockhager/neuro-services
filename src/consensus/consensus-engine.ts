@@ -294,7 +294,7 @@ export class ConsensusEngine extends EventEmitter {
           }
           break;
 
-        case 'consensus_vote':
+        case 'consensus_vote': {
           // Store remote vote for quorum tracking
           const existingVotes = this.votes.get(vote.proposalId) || [];
           const duplicateVote = existingVotes.find(v => v.voterId === vote.voterId);
@@ -307,6 +307,7 @@ export class ConsensusEngine extends EventEmitter {
             await this.checkConsensus(vote.proposalId);
           }
           break;
+        }
       }
     } catch (error) {
       this.emit('consensusMessageError', { message, error });
@@ -318,7 +319,6 @@ export class ConsensusEngine extends EventEmitter {
    */
   private async checkConsensus(proposalId: string): Promise<void> {
     const proposal = this.proposals.get(proposalId);
-    const votes = this.votes.get(proposalId) || [];
 
     if (!proposal) return;
 

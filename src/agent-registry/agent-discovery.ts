@@ -159,11 +159,7 @@ export class AgentDiscoveryService {
 
     // Apply location-based filtering if specified
     if (taskRequirements.location) {
-      const agentsWithLocation = result.agents.filter(agent => {
-        // In a real implementation, you'd check agent metadata for location
-        // For now, we'll assume location compatibility
-        return true;
-      });
+      const agentsWithLocation = result.agents;
 
       if (agentsWithLocation.length > 0) {
         bestAgent = agentsWithLocation[0];
@@ -278,7 +274,7 @@ export class AgentDiscoveryService {
   /**
    * Invalidate cache entries affected by agent changes
    */
-  private invalidateCacheForAgent(agent: AgentRegistration): void {
+  private invalidateCacheForAgent(): void {
     // Invalidate all cache entries since agent changes could affect many queries
     this.clearCache();
   }
@@ -286,7 +282,7 @@ export class AgentDiscoveryService {
   /**
    * Invalidate cache entries for a specific agent
    */
-  private invalidateCacheForAgentId(agentId: string): void {
+  private invalidateCacheForAgentId(): void {
     // For targeted invalidation, we'd need to track which queries include which agents
     // For simplicity, we'll clear all cache
     this.clearCache();

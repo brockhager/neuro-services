@@ -116,14 +116,14 @@ export class SecureCommunicationFramework extends EventEmitter {
    * Send an encrypted message to a peer
    */
   async sendMessage(message: SecureMessage): Promise<DeliveryReceipt> {
-    const startTime = Date.now();
+    // Removed unused startTime variable
 
     try {
       // Get or establish channel
       const channel = await this.establishConnection(message.recipientId);
 
       // Encrypt the message payload
-      const encryptedPayload = await this.encryptMessage(message.payload, channel.encryptionKey);
+      const encryptedPayload = await this.encryptMessage(message.payload);
 
       // Create signed message (sign the encrypted payload)
       const signedMessage: SecureMessage = {
@@ -199,7 +199,7 @@ export class SecureCommunicationFramework extends EventEmitter {
       }
 
       // Decrypt payload
-      const decryptedPayload = await this.decryptMessage(encryptedMessage.payload, channel.encryptionKey);
+      const decryptedPayload = await this.decryptMessage(encryptedMessage.payload);
 
       const decryptedMessage: SecureMessage = {
         ...encryptedMessage,
@@ -231,7 +231,6 @@ export class SecureCommunicationFramework extends EventEmitter {
   async negotiateProtocol(peerId: string): Promise<string> {
     // Simplified protocol negotiation
     // In real implementation, this would involve capability exchange
-    const supportedVersions = ['1.0', '0.9'];
     const peerAgent = this.registry.getAgent(peerId);
 
     if (!peerAgent) {
@@ -271,7 +270,7 @@ export class SecureCommunicationFramework extends EventEmitter {
   /**
    * Encrypt message payload using AES-256-GCM (simplified for testing)
    */
-  private async encryptMessage(payload: any, key: Buffer): Promise<EncryptedPayload> {
+  private async encryptMessage(payload: unknown): Promise<EncryptedPayload> {
     // Simplified encryption for testing - in production, use proper AES-GCM
     const plaintext = JSON.stringify(payload);
     const iv = crypto.randomBytes(16);
@@ -288,7 +287,7 @@ export class SecureCommunicationFramework extends EventEmitter {
   /**
    * Decrypt message payload using AES-256-GCM (simplified for testing)
    */
-  private async decryptMessage(encryptedPayload: EncryptedPayload, key: Buffer): Promise<any> {
+  private async decryptMessage(encryptedPayload: EncryptedPayload): Promise<unknown> {
     // Simplified decryption for testing - in production, use proper AES-GCM
     const plaintext = encryptedPayload.ciphertext.toString('utf8');
     return JSON.parse(plaintext);
@@ -297,7 +296,7 @@ export class SecureCommunicationFramework extends EventEmitter {
   /**
    * Sign message with Ed25519 (simplified for testing)
    */
-  private signMessage(payload: any, privateKey: Buffer): Buffer {
+  private signMessage(payload: unknown, privateKey: Buffer): Buffer {
     // Simplified signing for testing - in production, use proper Ed25519
     const messageHash = crypto.createHash('sha256')
       .update(JSON.stringify(payload))
@@ -378,7 +377,7 @@ export class SecureCommunicationFramework extends EventEmitter {
       const channel = this.channels.get(message.senderId);
       if (channel) {
         // Decrypt payload
-        const decryptedPayload = await this.decryptMessage(message.payload, channel.encryptionKey);
+        const decryptedPayload = await this.decryptMessage(message.payload);
 
         const decryptedMessage: SecureMessage = {
           ...message,

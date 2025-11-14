@@ -1,9 +1,7 @@
 import {
   SecureCommunicationFramework,
   SecureChannel,
-  SecureMessage,
-  EncryptedPayload,
-  DeliveryReceipt
+  SecureMessage
 } from './index';
 import { AgentRegistry } from '../agent-registry/index';
 

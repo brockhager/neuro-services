@@ -7,31 +7,6 @@ describe('Swarm Coordinator Integration', () => {
   let communication: SecureCommunicationFramework;
   let coordinator: SwarmCoordinator;
 
-  // Test utilities for async reliability
-  const waitForEvent = (emitter: any, eventName: string, timeout = 1000): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error(`Event ${eventName} not received within ${timeout}ms`));
-      }, timeout);
-
-      emitter.once(eventName, (data: any) => {
-        clearTimeout(timer);
-        resolve(data);
-      });
-    });
-  };
-
-  const retryAsync = async (fn: () => Promise<any>, maxRetries = 3, delay = 50): Promise<any> => {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        return await fn();
-      } catch (error) {
-        if (i === maxRetries - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-      }
-    }
-  };
-
   beforeEach(async () => {
     registry = new AgentRegistry();
     communication = new SecureCommunicationFramework(registry);
@@ -423,7 +398,7 @@ describe('Swarm Coordinator Integration', () => {
 
       await (coordinator as any).handleCoordinationMessage(acceptanceMessage);
 
-      let retrievedTask = coordinator.getTask(taskId);
+      const retrievedTask = coordinator.getTask(taskId);
       expect(retrievedTask!.assignedAgents).toContain('agent1');
 
       // Simulate agent failure (mark as offline)

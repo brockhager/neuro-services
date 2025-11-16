@@ -33,4 +33,18 @@ jobs:
         run: npm test -- --runInBand --detectOpenHandles
       - name: Run e2e tests
         working-directory: ./neuro-services
-        run: npm test -- tests/e2e-chat.test.ts --runInBand
+        env:
+          GATEWAY_URLS: "http://localhost:4301,http://localhost:4302"
+        run: npm test -- tests/e2e-chat.test.ts tests/multi-gateway.test.ts tests/pos-e2e.test.ts tests/pos-reorg.test.ts tests/pos-reorg-extended.test.ts tests/pos-equivocation.test.ts tests/ed25519-signature.test.ts tests/ed25519-invalid-sign.test.ts --runInBand
+      - name: Dump ns-node gateways debug (for traceability)
+        working-directory: ./neuro-services
+        run: |
+          node -e "(async()=>{const res=await fetch('http://localhost:4101/debug/gateways'); const j=await res.json(); console.log('GATEWAYS DEBUG: ', JSON.stringify(j,null,2));})();" || true
+
+      - name: Dump test server logs
+        if: ${{ always() }}
+        working-directory: ./neuro-services
+        run: |
+          echo "==== NS NODE LOGS ===="
+          ls -la ../neuroswarm/tmp/logs || true
+          for f in ../neuroswarm/tmp/logs/*; do echo "== file: $f =="; sed -n '1,400p' $f; done || true

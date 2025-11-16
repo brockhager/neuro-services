@@ -2,6 +2,7 @@ import express from 'express';
 // use global fetch available in Node 18+
 import jwt from 'jsonwebtoken';
 import { spawn } from 'child_process';
+import { killChild } from './utils/testHelpers';
 import path from 'path';
 
 jest.setTimeout(30000);
@@ -63,7 +64,7 @@ test('gateway proxy mock preserves Authorization header', async () => {
     expect(dbg.lastHeaders.authorization).toContain(token);
   } finally {
     if (child) {
-      child.kill();
+      await killChild(child);
       (child as any).stdin?.end();
       child.stdout?.destroy();
       child.stderr?.destroy();

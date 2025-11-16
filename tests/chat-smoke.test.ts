@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { killChild } from './utils/testHelpers';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 
@@ -56,12 +57,7 @@ test('ns-node responds with provenance fields', async () => {
     expect(dbg.lastHeaders.authorization).toContain(token);
   } finally {
     if (child) {
-      try {
-        child.kill();
-        (child as any).stdin?.end?.();
-        child.stdout?.destroy?.();
-        child.stderr?.destroy?.();
-      } catch {}
+      try { await killChild(child); } catch (e) {}
     }
   }
 });

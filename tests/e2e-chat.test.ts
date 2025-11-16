@@ -1,13 +1,15 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import jwt from 'jsonwebtoken';
+import { startServerWithLogs, waitForHeight, killChild } from './utils/testHelpers';
 
 jest.setTimeout(120000);
 
 function startNsNode(port = 4010) {
   const serverPath = path.resolve(__dirname, '..', '..', 'neuroswarm', 'ns-node', 'server.js');
   const env = { ...process.env, PORT: port.toString() } as any;
-  return spawn('node', [serverPath], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const { child } = startServerWithLogs(serverPath, env, `ns-${port}`);
+  return child;
 }
 
 function startGateway(nsUrl: string, port = 5010) {
@@ -61,8 +63,9 @@ test('E2E: neuro-web -> gateway -> ns-node chat flow', async () => {
     const web = startNeuroWeb(webPort);
     await waitForOutput(web, /started server on/, 15000).catch(() => {}); // Next prints different messages
 
-    // Wait a bit for servers to settle
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for ns/gateway to be ready
+    const started = await waitForHeight(nsPort, 0, 5000);
+    expect(started).toBeTruthy();
 
     // Create token and call web -> it will attempt to call gateway under the hood, but for e2e we'll call gateway directly
     const token = jwt.sign({ username: 'e2e' }, 'test-secret');
@@ -81,31 +84,11 @@ test('E2E: neuro-web -> gateway -> ns-node chat flow', async () => {
     expect(dbg.lastHeaders.authorization).toContain('Bearer');
 
     // Cleanup
-    if (web) {
-      web.kill();
-      (web as any).stdin?.end?.();
-      web.stdout?.destroy?.();
-      web.stderr?.destroy?.();
-    }
-    if (gateway) {
-      gateway.kill();
-      (gateway as any).stdin?.end?.();
-      gateway.stdout?.destroy?.();
-      gateway.stderr?.destroy?.();
-    }
-    if (ns) {
-      ns.kill();
-      (ns as any).stdin?.end?.();
-      ns.stdout?.destroy?.();
-      ns.stderr?.destroy?.();
-    }
+    if (web) { await killChild(web); }
+    if (gateway) { await killChild(gateway); }
+    if (ns) { await killChild(ns); }
   } catch (err) {
-    if (ns) {
-      ns.kill();
-      (ns as any).stdin?.end?.();
-      ns.stdout?.destroy?.();
-      ns.stderr?.destroy?.();
-    }
+    if (ns) { await killChild(ns); }
     throw err;
   }
 });

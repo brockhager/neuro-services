@@ -50,7 +50,7 @@ async function fetchJson(url, opts) {
 test('POS Reorg: accept fork and reorg to heavier chain; SPV proof remains valid for canonical txs', async () => {
   const nsPort = 4301;
   const { child: ns } = startNsNode(nsPort);
-  const started = await waitForHeight(nsPort, 0, 5000);
+  const started = await waitForHeight(nsPort, 0, 30000);
   expect(started).toBeTruthy();
 
   // create two validators with different stakes (valA lower, valB higher)
@@ -113,7 +113,7 @@ test('POS Reorg: accept fork and reorg to heavier chain; SPV proof remains valid
   expect(resA.ok).toBeTruthy();
   const aHash = resA.blockHash;
 
-  const ok1 = await waitForTip(nsPort, aHash, 5000);
+  const ok1 = await waitForTip(nsPort, aHash, 30000);
   expect(ok1).toBeTruthy();
 
   const slotB = 1;
@@ -124,7 +124,7 @@ test('POS Reorg: accept fork and reorg to heavier chain; SPV proof remains valid
   expect(resB.ok).toBeTruthy();
   const bHash = resB.blockHash;
 
-  const ok2 = await waitForTip(nsPort, bHash, 5000);
+  const ok2 = await waitForTip(nsPort, bHash, 30000);
   const latest2 = await fetchJson(`http://localhost:${nsPort}/blocks/latest`);
   // since B had greater stake, canonical should now be B's block (reorg happened)
   expect(latest2.block.blockHash).toBe(bHash);

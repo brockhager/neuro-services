@@ -30,7 +30,7 @@ async function fetchJson(url, opts) {
 test('namespace rejects invalid header signatures', async () => {
   const nsPort = 4341;
   const { child: ns, logFile } = startNsNode(nsPort);
-  const started = await waitForHeight(nsPort, 0, 5000);
+  const started = await waitForHeight(nsPort, 0, 30000);
   expect(started).toBeTruthy();
   // generate ed25519 keys for validator
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');

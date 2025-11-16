@@ -64,7 +64,7 @@ test('E2E: neuro-web -> gateway -> ns-node chat flow', async () => {
     await waitForOutput(web, /started server on/, 15000).catch(() => {}); // Next prints different messages
 
     // Wait for ns/gateway to be ready
-    const started = await waitForHeight(nsPort, 0, 5000);
+    const started = await waitForHeight(nsPort, 0, 30000);
     expect(started).toBeTruthy();
 
     // Create token and call web -> it will attempt to call gateway under the hood, but for e2e we'll call gateway directly

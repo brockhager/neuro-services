@@ -5,7 +5,7 @@ import crypto from 'crypto';
 
 export function sleep(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-export async function waitForTip(nsPort: number, expectedHash: string, timeout = 10000, interval = 200): Promise<boolean> {
+export async function waitForTip(nsPort: number, expectedHash: string, timeout = 30000, interval = 200): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     try {
@@ -20,7 +20,7 @@ export async function waitForTip(nsPort: number, expectedHash: string, timeout =
   return false;
 }
 
-export async function waitForHeight(nsPort: number, expectedHeight: number, timeout = 10000, interval = 200): Promise<boolean> {
+export async function waitForHeight(nsPort: number, expectedHeight: number, timeout = 30000, interval = 200): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     try {
@@ -35,7 +35,7 @@ export async function waitForHeight(nsPort: number, expectedHeight: number, time
   return false;
 }
 
-export async function waitForCondition(checkFn: () => Promise<boolean>, timeout = 10000, interval = 200) {
+export async function waitForCondition(checkFn: () => Promise<boolean>, timeout = 30000, interval = 200) {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     try {

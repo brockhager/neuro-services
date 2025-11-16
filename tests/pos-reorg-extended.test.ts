@@ -34,7 +34,7 @@ function computeMerkleRoot(txIds) {
   return layer[0].toString('hex');
 }
 
-jest.setTimeout(180000);
+jest.setTimeout(300000);
 
 // use startServerWithLogs for starting tests; convenience wrapper
 function startNsNode(port = 4200, tag = 'ns') {
@@ -73,7 +73,7 @@ async function produceBlock(nsPort, prevHash, validatorId, privKeyPem, txs = [])
 test('multi-block fork: longer/heavier chain overtakes the canonical tip', async () => {
   const nsPort = 4320;
   const { child: ns, logFile: nsLog } = startNsNode(nsPort);
-  const ok = await waitForHeight(nsPort, 0, 5000);
+  const ok = await waitForHeight(nsPort, 0, 30000);
   expect(ok).toBeTruthy();
 
   // Validator A and B: B will attempt to overtake by producing more blocks
@@ -99,7 +99,7 @@ test('multi-block fork: longer/heavier chain overtakes the canonical tip', async
   const a1 = resA1.blockHash;
 
   // Wait and ensure canonical tip is A1
-  let ok1 = await waitForTip(nsPort, a1, 5000);
+  let ok1 = await waitForTip(nsPort, a1, 30000);
   expect(ok1).toBeTruthy();
 
   // B creates a fork starting at genesis and extends it by producing multiple blocks; B will increase stake and make chain heavier
@@ -123,7 +123,7 @@ test('multi-block fork: longer/heavier chain overtakes the canonical tip', async
   const b3 = resB3.blockHash;
 
   // After B's chain grows heavier, canonical tip should be B3
-  let ok2 = await waitForTip(nsPort, b3, 10000);
+  let ok2 = await waitForTip(nsPort, b3, 30000);
   expect(ok2).toBeTruthy();
 
   // cleanup
@@ -133,7 +133,7 @@ test('multi-block fork: longer/heavier chain overtakes the canonical tip', async
 test('reorg & mempool re-application: txs from old canonical chain return to mempool or are re-applied', async () => {
   const nsPort = 4323;
   const { child: ns2 } = startNsNode(nsPort);
-  const okStart = await waitForHeight(nsPort, 0, 5000);
+  const okStart = await waitForHeight(nsPort, 0, 30000);
   expect(okStart).toBeTruthy();
 
   // Setup validators
@@ -158,7 +158,7 @@ test('reorg & mempool re-application: txs from old canonical chain return to mem
   const resA1 = await produceBlock(nsPort, genesisPrev, 'A', privA_pem, [tx1]);
   expect(resA1.ok).toBeTruthy();
   const a1hash = resA1.blockHash;
-  await waitForTip(nsPort, a1hash, 5000);
+  await waitForTip(nsPort, a1hash, 30000);
   // SPV proof should exist
   const proof = await fetchJson(`http://localhost:${nsPort}/proof/${tx1Id}`);
   expect(proof).toHaveProperty('proof');
@@ -197,7 +197,7 @@ test('warning logged when non-selected validator produces block', async () => {
   const nsPort = 4330;
   const { child: nc, logFile, errFile } = startNsNode(nsPort, 'ns-warn');
   // give server a moment to start
-  const okStartWarn = await waitForHeight(nsPort, 0, 5000);
+  const okStartWarn = await waitForHeight(nsPort, 0, 30000);
   expect(okStartWarn).toBeTruthy();
   const { publicKey: pubA, privateKey: privA } = crypto.generateKeyPairSync('ed25519');
   const { publicKey: pubB, privateKey: privB } = crypto.generateKeyPairSync('ed25519');

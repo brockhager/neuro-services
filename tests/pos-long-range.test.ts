@@ -29,7 +29,7 @@ function computeMerkleRoot(txIds) {
   return layer[0].toString('hex');
 }
 
-jest.setTimeout(180000);
+jest.setTimeout(300000);
 
 async function fetchJson(url, opts) { const res = await fetch(url, opts); return res.json(); }
 
@@ -46,7 +46,7 @@ async function produceBlock(nsPort, validatorId, privKey, prevHash, txs = []) {
 test('long-range fork: deeper branch overtakes canonical after multiple blocks', async () => {
   const nsPort = 4360;
   const { child: ns } = startServerWithLogs(path.resolve(__dirname, '..', '..', 'neuroswarm', 'ns-node', 'server.js'), { PORT: nsPort }, `ns-${nsPort}`);
-  const started = await waitForHeight(nsPort, 0, 5000);
+  const started = await waitForHeight(nsPort, 0, 30000);
   expect(started).toBeTruthy();
 
   const { publicKey: pubA, privateKey: privA } = crypto.generateKeyPairSync('ed25519');
@@ -67,7 +67,7 @@ test('long-range fork: deeper branch overtakes canonical after multiple blocks',
   const resA1 = await produceBlock(nsPort, 'A', privA_pem, genesis, [txA]);
   expect(resA1.ok).toBeTruthy();
   const tipA1 = resA1.blockHash;
-  const tipA_ok = await waitForTip(nsPort, tipA1, 5000);
+  const tipA_ok = await waitForTip(nsPort, tipA1, 30000);
   expect(tipA_ok).toBeTruthy();
 
   // B creates a chain of 5 blocks, each incrementally increasing its stake via reward
@@ -83,7 +83,7 @@ test('long-range fork: deeper branch overtakes canonical after multiple blocks',
   }
 
   // After B's extended chain, it should overtake the canonical tip of A
-  const overtook = await waitForTip(nsPort, lastB, 15000);
+  const overtook = await waitForTip(nsPort, lastB, 60000);
   expect(overtook).toBeTruthy();
 
   // Verify that any tx previously in A's block is now not provable

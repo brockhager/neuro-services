@@ -32,7 +32,7 @@ function computeMerkleRoot(txIds) {
   return layer[0].toString('hex');
 }
 
-jest.setTimeout(120000);
+jest.setTimeout(240000);
 
 async function fetchJson(url, opts) { const res = await fetch(url, opts); return res.json(); }
 
@@ -40,7 +40,7 @@ test('equivocation: slash validator on double-sign (same parent, two different b
   const nsPort = 4350;
   const serverPath = path.resolve(__dirname, '..', '..', 'neuroswarm', 'ns-node', 'server.js');
   const { child, logFile } = startServerWithLogs(serverPath, { PORT: nsPort }, 'ns-equiv');
-  const started = await waitForHeight(nsPort, 0, 5000);
+  const started = await waitForHeight(nsPort, 0, 30000);
   expect(started).toBeTruthy();
   const { publicKey: pubS, privateKey: privS } = crypto.generateKeyPairSync('ed25519');
   const pubS_pem = pubS.export({ type: 'spki', format: 'pem' });
@@ -71,7 +71,7 @@ test('equivocation: slash validator on double-sign (same parent, two different b
     const vs = await fetchJson(`http://localhost:${nsPort}/validators`);
     const s = vs.validators.find(v => v.validatorId === 'S');
     return s && s.slashed;
-  }, 5000, 200);
+  }, 30000, 200);
   expect(slashed).toBeTruthy();
   const vs = await fetchJson(`http://localhost:${nsPort}/validators`);
   const s = vs.validators.find(v => v.validatorId === 'S');

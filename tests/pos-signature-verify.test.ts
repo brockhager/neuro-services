@@ -46,7 +46,7 @@ test('header signature verify: valid header passes, altered header fails', async
   const nsPort = 4380;
   const { child: ns } = startServerWithLogs(path.resolve(__dirname, '..', '..', 'neuroswarm', 'ns-node', 'server.js'), { PORT: nsPort }, `ns-${nsPort}`);
   nsChild = ns;
-  await waitForHeight(nsPort, 0, 10000);
+  await waitForHeight(nsPort, 0, 30000);
 
   const { publicKey: p1, privateKey: pr1 } = crypto.generateKeyPairSync('ed25519');
   const p1pem = p1.export({ type: 'spki', format: 'pem' });

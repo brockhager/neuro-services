@@ -627,6 +627,37 @@ app.get("/v1/communication/channels/:peerId", authenticate, async (req, res) => 
   }
 });
 
+// Chat proxy: forward chat requests to a local ns-node runtime if configured
+app.post('/v1/chat', authenticate, async (req, res) => {
+  const nsNodeUrl = process.env.NS_NODE_URL || 'http://localhost:3000';
+  try {
+    // Forward POST /chat to the local ns-node runtime
+    const forwardRes = await fetch(`${nsNodeUrl}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    const body = await forwardRes.json();
+    return res.status(forwardRes.status).json(body);
+  } catch (err: any) {
+    console.error('Chat proxy error:', err);
+    return res.status(502).json({ error: 'Failed to reach local chat runtime', detail: err?.message });
+  }
+});
+
+// Chat history route proxy
+app.get('/v1/chat/history', authenticate, async (req, res) => {
+  const nsNodeUrl = process.env.NS_NODE_URL || 'http://localhost:3000';
+  try {
+    const forwardRes = await fetch(`${nsNodeUrl}/history`);
+    const body = await forwardRes.json();
+    return res.status(forwardRes.status).json(body);
+  } catch (err: any) {
+    console.error('Chat history proxy error:', err);
+    return res.status(502).json({ error: 'Failed to reach local chat runtime', detail: err?.message });
+  }
+});
+
 app.get("/v1/communication/metrics", authenticate, (req, res) => {
   try {
     const metrics = secureCommunication.getMetrics();

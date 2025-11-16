@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import { Server } from "http";
 import request from "supertest";
 import jwt from "jsonwebtoken";
-import app from "../src/index";
+import app, { shutdown } from "../src/index";
 
 let server: Server;
 let authToken: string;
@@ -18,8 +18,13 @@ beforeAll(async () => {
   authToken = loginResponse.body.token;
 });
 
-afterAll((done) => {
-  server.close(done);
+afterAll(async () => {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  try {
+    await shutdown();
+  } catch (err) {
+    console.error('Error during test shutdown', err);
+  }
 });
 
 describe("Gateway API", () => {

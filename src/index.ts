@@ -64,7 +64,9 @@ interface LineageItem {
 }
 
 // Prometheus metrics
-collectDefaultMetrics();
+if (process.env.NODE_ENV !== 'test') {
+  collectDefaultMetrics();
+}
 
 const authFailures = new Counter({
   name: 'neuroswarm_auth_failures_total',
@@ -110,10 +112,13 @@ const tokenomicsEngine = new TokenomicsEngine(secureCommunication, agentRegistry
 // Swarm Intelligence Coordinator (Feature 7)
 const swarmCoordinator = new SwarmCoordinator(secureCommunication, agentRegistryCore);
 
-// Periodic cleanup of inactive agents
-setInterval(() => {
-  agentRegistry.cleanup();
-}, 60000); // Clean up every minute
+// Periodic cleanup of inactive agents (keep handle to clear on shutdown)
+let agentRegistryCleanupInterval: NodeJS.Timeout | null = null;
+if (process.env.NODE_ENV !== 'test') {
+  agentRegistryCleanupInterval = setInterval(() => {
+    agentRegistry.cleanup();
+  }, 60000); // Clean up every minute
+}
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -632,11 +637,26 @@ app.post('/v1/chat', authenticate, async (req, res) => {
   const nsNodeUrl = process.env.NS_NODE_URL || 'http://localhost:3000';
   try {
     // Forward POST /chat to the local ns-node runtime
+    const forwardHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Forwarded-For': req.ip || '',
+      'X-Forwarded-User': (req as any).user?.username || ''
+    };
+    if (req.header('authorization')) {
+      forwardHeaders['Authorization'] = req.header('authorization') as string;
+    }
     const forwardRes = await fetch(`${nsNodeUrl}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: forwardHeaders as any,
       body: JSON.stringify(req.body)
     });
+
+    // Audit log for forwarded request and headers
+    // Log a masked authorization header to avoid leaking tokens (only show prefix)
+    const authHeader = req.header('authorization') as string | undefined;
+    const maskedAuth = authHeader ? `${authHeader.substring(0, 7)}...` : '';
+    console.log(`[CHAT_PROXY] Forwarded /v1/chat from ${req.ip} as ${(req as any).user?.username} to ${nsNodeUrl} auth=${maskedAuth}`);
+
     const body = await forwardRes.json();
     return res.status(forwardRes.status).json(body);
   } catch (err: any) {
@@ -649,7 +669,20 @@ app.post('/v1/chat', authenticate, async (req, res) => {
 app.get('/v1/chat/history', authenticate, async (req, res) => {
   const nsNodeUrl = process.env.NS_NODE_URL || 'http://localhost:3000';
   try {
-    const forwardRes = await fetch(`${nsNodeUrl}/history`);
+    const forwardHeaders: Record<string, string> = {
+      'X-Forwarded-For': req.ip || '',
+      'X-Forwarded-User': (req as any).user?.username || ''
+    };
+    if (req.header('authorization')) {
+      forwardHeaders['Authorization'] = req.header('authorization') as string;
+    }
+    const forwardRes = await fetch(`${nsNodeUrl}/history`, {
+      headers: forwardHeaders as any
+    });
+
+    const maskedAuthHistory = req.header('authorization') ? `${(req.header('authorization') as string).substring(0, 7)}...` : '';
+    console.log(`[CHAT_PROXY] Forwarded /v1/chat/history from ${req.ip} as ${(req as any).user?.username} to ${nsNodeUrl} auth=${maskedAuthHistory}`);
+
     const body = await forwardRes.json();
     return res.status(forwardRes.status).json(body);
   } catch (err: any) {
@@ -928,25 +961,47 @@ app.get("/metrics", async (req, res) => {
   }
 });
 
-// Clean shutdown
-process.on('SIGINT', () => {
-  console.log('Shutting down Neuro Services Gateway...');
-  agentRegistry.cleanup();
-  secureCommunication.destroy();
-  swarmCoordinator.destroy();
+// Shutdown helper
+export async function shutdown(): Promise<void> {
+  console.log('Shutting down Neuro Services Gateway (shutdown() called)...');
+  try {
+    agentRegistry.cleanup();
+    agentRegistry.destroy?.();
+    agentRegistryCore.destroy?.();
+    secureCommunication.destroy?.();
+    consensusEngine.destroy?.();
+    tokenomicsEngine?.destroy?.();
+    swarmCoordinator.destroy?.();
+    if (agentRegistryCleanupInterval) {
+      clearInterval(agentRegistryCleanupInterval);
+      agentRegistryCleanupInterval = null;
+    }
+    if (server) {
+      await new Promise<void>((resolve) => server!.close(() => resolve()));
+      server = undefined;
+    }
+  } catch (err) {
+    console.error('Error during shutdown:', err);
+  }
+}
+
+// Clean shutdown via signals
+process.on('SIGINT', async () => {
+  await shutdown();
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-  console.log('Shutting down Neuro Services Gateway...');
-  agentRegistry.cleanup();
-  secureCommunication.destroy();
-  swarmCoordinator.destroy();
+process.on('SIGTERM', async () => {
+  await shutdown();
   process.exit(0);
 });
 
-app.listen(port, () => {
-  console.log(`Neuro Services Gateway API listening on port ${port}`);
-});
+import { Server } from 'http';
+export let server: Server | undefined;
 
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(port, () => {
+    console.log(`Neuro Services Gateway API listening on port ${port}`);
+  });
+}
 export default app;

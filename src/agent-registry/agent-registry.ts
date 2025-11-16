@@ -107,7 +107,7 @@ export class AgentRegistry extends EventEmitter {
   constructor(
     private heartbeatIntervalMs: number = 30000, // 30 seconds
     private healthCheckTimeoutMs: number = 5000,   // 5 seconds
-    private jitterToleranceMs: number = 5000,      // 5 seconds jitter tolerance
+    private jitterToleranceMs: number = 50,      // 50 ms jitter tolerance
     private gracePeriodMisses: number = 2          // Allow 2 missed heartbeats before marking offline
   ) {
     super();

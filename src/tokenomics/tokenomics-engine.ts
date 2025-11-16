@@ -71,10 +71,11 @@ export class TokenomicsEngine extends EventEmitter {
     super();
 
     // Listen for funding messages from communication framework
-    this.communication.on('messageReceived', (message) => {
-      this.handleFundingMessage(message);
-    });
+    this.onMessageHandler = (message: SecureMessage) => this.handleFundingMessage(message);
+    this.communication.on('messageReceived', this.onMessageHandler);
   }
+
+  private onMessageHandler: ((message: SecureMessage) => void) | null = null;
 
   /**
    * Submit a funding proposal
@@ -512,5 +513,17 @@ export class TokenomicsEngine extends EventEmitter {
       averageContribution: fundedResults.length > 0 ? totalContributions / fundedResults.length : 0,
       categoryBreakdown
     };
+  }
+
+  destroy(): void {
+    if (this.onMessageHandler) {
+      this.communication.off('messageReceived', this.onMessageHandler);
+      this.onMessageHandler = null;
+    }
+    this.proposals.clear();
+    this.contributions.clear();
+    this.fundingResults.clear();
+    this.activeProposals.clear();
+    this.removeAllListeners();
   }
 }

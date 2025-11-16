@@ -30,6 +30,8 @@ describe('Consensus Engine Integration', () => {
 
   afterEach(() => {
     communication.destroy();
+    consensus.destroy?.();
+    registry.destroy();
   });
 
   describe('Proposal Creation and Broadcasting', () => {
@@ -203,6 +205,9 @@ describe('Consensus Engine Integration', () => {
         vote: 'approve',
         stake: 180
       });
+
+      // Cleanup the test instance
+      testConsensus.destroy();
 
       // Force consensus check (in real implementation this would happen automatically)
       // Note: This test demonstrates the integration - full consensus resolution

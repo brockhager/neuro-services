@@ -274,7 +274,7 @@ export class AgentDiscoveryService {
   /**
    * Invalidate cache entries affected by agent changes
    */
-  private invalidateCacheForAgent(): void {
+  private invalidateCacheForAgent(agent?: any): void {
     // Invalidate all cache entries since agent changes could affect many queries
     this.clearCache();
   }
@@ -282,7 +282,7 @@ export class AgentDiscoveryService {
   /**
    * Invalidate cache entries for a specific agent
    */
-  private invalidateCacheForAgentId(): void {
+  private invalidateCacheForAgentId(agentId?: string): void {
     // For targeted invalidation, we'd need to track which queries include which agents
     // For simplicity, we'll clear all cache
     this.clearCache();

@@ -69,6 +69,30 @@ describe('Swarm Coordinator Integration', () => {
     coordinator.destroy();
   });
 
+  describe('Lifecycle', () => {
+    it('should stop periodic coordination when destroyed', async () => {
+      // Create a short-interval coordinator for this test
+      const shortCoordinator = new SwarmCoordinator(communication, registry, 50, 1000);
+      let fired = false;
+      shortCoordinator.on('coordinationCycleCompleted', () => { fired = true; });
+
+      // Wait for a couple of cycles
+      await new Promise(resolve => setTimeout(resolve, 150));
+      expect(fired).toBe(true);
+
+      // Reset and destroy
+      fired = false;
+      shortCoordinator.destroy();
+
+      // Wait longer than the short interval to ensure no further cycles
+      await new Promise(resolve => setTimeout(resolve, 150));
+      expect(fired).toBe(false);
+
+      // cleanup
+      shortCoordinator.removeAllListeners();
+    });
+  });
+
   describe('Task Registration and Broadcasting', () => {
     it('should register tasks and broadcast to capable agents', async () => {
       const task: Omit<SwarmTask, 'id' | 'status' | 'createdAt' | 'assignedAgents' | 'progress'> = {

@@ -128,8 +128,8 @@ describe('Secure Communication Framework', () => {
     it('should decrypt received messages', async () => {
       // Test the encryption/decryption functions directly
       const testPayload = { type: 'test', data: 'hello world' };
-      const encrypted = await communication['encryptMessage'](testPayload, channel.encryptionKey);
-      const decrypted = await communication['decryptMessage'](encrypted, channel.encryptionKey);
+      const encrypted = await communication['encryptMessage'](testPayload);
+      const decrypted = await communication['decryptMessage'](encrypted);
 
       expect(decrypted).toEqual(testPayload);
     });
@@ -142,7 +142,7 @@ describe('Secure Communication Framework', () => {
       const channel = await communication.establishConnection('receiver');
       
       // Encrypt the payload first (as done in sendMessage)
-      const encryptedPayload = await communication['encryptMessage'](testPayload, channel.encryptionKey);
+      const encryptedPayload = await communication['encryptMessage'](testPayload);
       
       // Sign the encrypted payload
       const signature = communication['signMessage'](encryptedPayload, communication['getPrivateKey']('sender'));
@@ -394,7 +394,7 @@ describe('Secure Communication Framework', () => {
       };
 
       // Manually encrypt and sign the message
-      const encryptedPayload = await communication['encryptMessage'](message.payload, channel.encryptionKey);
+      const encryptedPayload = await communication['encryptMessage'](message.payload);
       const signature = communication['signMessage'](encryptedPayload, communication['getPrivateKey']('alice'));
 
       const encryptedMessage: SecureMessage = {

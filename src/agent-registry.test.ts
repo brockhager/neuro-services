@@ -17,6 +17,10 @@ describe('AgentRegistryService', () => {
     registry = new AgentRegistryService();
   });
 
+  afterEach(() => {
+    registry.destroy();
+  });
+
   describe('registerAgent', () => {
     it('should register a valid agent', async () => {
       const request: AgentRegistrationRequest = {

@@ -62,6 +62,8 @@ export class ConsensusEngine extends EventEmitter {
   private votes: Map<string, ConsensusVote[]> = new Map();
   private results: Map<string, ConsensusResult> = new Map();
   private activeProposals: Set<string> = new Set();
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  private onMessageHandler: ((message: any) => void) | null = null;
 
   constructor(
     private communication: SecureCommunicationFramework,
@@ -77,12 +79,25 @@ export class ConsensusEngine extends EventEmitter {
     super();
 
     // Listen for consensus messages from communication framework
-    this.communication.on('messageReceived', (message) => {
-      this.handleConsensusMessage(message);
-    });
+    this.onMessageHandler = (message: any) => this.handleConsensusMessage(message);
+    this.communication.on('messageReceived', this.onMessageHandler);
 
-    // Start periodic cleanup of expired proposals
-    setInterval(() => this.cleanupExpiredProposals(), 60 * 60 * 1000); // Hourly cleanup
+    // Start periodic cleanup of expired proposals and keep handle to clear later
+    this.cleanupInterval = setInterval(() => this.cleanupExpiredProposals(), 60 * 60 * 1000); // Hourly cleanup
+  }
+
+  /**
+   * Cleanly shutdown the consensus engine
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    if (this.onMessageHandler) {
+      this.communication.off('messageReceived', this.onMessageHandler);
+      this.onMessageHandler = null;
+    }
   }
 
   /**

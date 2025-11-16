@@ -31,6 +31,7 @@ describe('Tokenomics Engine Integration', () => {
   afterEach(() => {
     communication.destroy();
     registry.destroy();
+    tokenomics.destroy();
   });
 
   describe('Funding Proposal Management', () => {
@@ -280,6 +281,9 @@ describe('Tokenomics Engine Integration', () => {
 
       // Final funding should be capped at pool size
       expect(result.finalFunding).toBeLessThanOrEqual(100);
+
+      // Cleanup
+      limitedTokenomics.destroy();
     });
 
     it('should generate transparency reports', async () => {

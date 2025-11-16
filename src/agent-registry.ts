@@ -19,6 +19,8 @@ interface StoredAgent extends AgentMetadata {
 export class AgentRegistryService {
   private agents: Map<string, StoredAgent> = new Map();
   private swarms: Map<string, SwarmFormation> = new Map();
+  private registrationTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private swarmTimeouts: Map<string, NodeJS.Timeout> = new Map();
 
   /**
    * Register a new AI agent
@@ -51,18 +53,35 @@ export class AgentRegistryService {
       this.agents.set(agentId, agent);
 
       // Set registration timeout
-      setTimeout(() => {
+      const registrationTimer = setTimeout(() => {
         const storedAgent = this.agents.get(agentId);
         if (storedAgent && storedAgent.status === AgentStatus.REGISTERING) {
           storedAgent.status = AgentStatus.INACTIVE;
         }
       }, REGISTRATION_TIMEOUT);
+      this.registrationTimeouts.set(agentId, registrationTimer);
 
       return { success: true, agentId };
     } catch (error) {
       console.error('Agent registration failed:', error);
       return { success: false, error: 'Registration failed' };
     }
+  }
+
+  /**
+   * Destroy service and clear timers
+   */
+  destroy(): void {
+    for (const timer of this.registrationTimeouts.values()) {
+      clearTimeout(timer);
+    }
+    this.registrationTimeouts.clear();
+    for (const timer of this.swarmTimeouts.values()) {
+      clearTimeout(timer);
+    }
+    this.swarmTimeouts.clear();
+    this.agents.clear();
+    this.swarms.clear();
   }
 
   /**
@@ -168,6 +187,11 @@ export class AgentRegistryService {
       return { success: false, error: 'Agent not found' };
     }
 
+    const regTimer = this.registrationTimeouts.get(agentId);
+    if (regTimer) {
+      clearTimeout(regTimer);
+      this.registrationTimeouts.delete(agentId);
+    }
     this.agents.delete(agentId);
     return { success: true };
   }
@@ -227,12 +251,13 @@ export class AgentRegistryService {
       this.swarms.set(swarm.id, swarm);
 
       // Transition to active after formation
-      setTimeout(() => {
+      const swarmTimer = setTimeout(() => {
         const storedSwarm = this.swarms.get(swarm.id);
         if (storedSwarm && storedSwarm.status === SwarmStatus.FORMING) {
           storedSwarm.status = SwarmStatus.ACTIVE;
         }
       }, 5000); // 5 second formation period
+      this.swarmTimeouts.set(swarm.id, swarmTimer);
 
       return { success: true, swarm };
     } catch (error) {
@@ -266,6 +291,12 @@ export class AgentRegistryService {
 
       if (shouldRemove) {
         console.log(`Removing inactive agent: ${agentId} (status: ${agent.status})`);
+        // clear registration timer if present
+        const regTimer = this.registrationTimeouts.get(agentId);
+        if (regTimer) {
+          clearTimeout(regTimer);
+          this.registrationTimeouts.delete(agentId);
+        }
         this.agents.delete(agentId);
       }
     }
@@ -274,6 +305,11 @@ export class AgentRegistryService {
     for (const [swarmId, swarm] of this.swarms.entries()) {
       if (swarm.expectedCompletion && now > swarm.expectedCompletion) {
         console.log(`Removing expired swarm: ${swarmId}`);
+        const sTimer = this.swarmTimeouts.get(swarmId);
+        if (sTimer) {
+          clearTimeout(sTimer);
+          this.swarmTimeouts.delete(swarmId);
+        }
         this.swarms.delete(swarmId);
       }
     }

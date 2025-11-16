@@ -66,6 +66,8 @@ export interface SwarmMetrics {
  */
 export class SwarmCoordinator extends EventEmitter {
   private tasks: Map<string, SwarmTask> = new Map();
+    private coordinationIntervalHandle: NodeJS.Timeout | null = null;
+    private onMessageHandler: ((message: any) => void) | null = null;
   private allocations: Map<string, TaskAllocation[]> = new Map();
   private agentStates: Map<string, Agent> = new Map();
   private coordinationHistory: CoordinationMessage[] = [];
@@ -79,12 +81,11 @@ export class SwarmCoordinator extends EventEmitter {
     super();
 
     // Listen for coordination messages
-    this.communication.on('messageReceived', (message) => {
-      this.handleCoordinationMessage(message);
-    });
+    this.onMessageHandler = (message: any) => this.handleCoordinationMessage(message);
+    this.communication.on('messageReceived', this.onMessageHandler);
 
-    // Start periodic coordination
-    setInterval(() => this.performCoordinationCycle(), coordinationInterval);
+    // Start periodic coordination and keep handle to clear it on destroy
+    this.coordinationIntervalHandle = setInterval(() => this.performCoordinationCycle(), coordinationInterval);
 
     // Initialize agent states
     this.initializeAgentStates();
@@ -651,7 +652,14 @@ export class SwarmCoordinator extends EventEmitter {
    * Clean shutdown
    */
   destroy(): void {
-    // Clean up any intervals if needed
+    if (this.coordinationIntervalHandle) {
+      clearInterval(this.coordinationIntervalHandle);
+      this.coordinationIntervalHandle = null;
+    }
+    if (this.onMessageHandler) {
+      this.communication.off('messageReceived', this.onMessageHandler);
+      this.onMessageHandler = null;
+    }
     this.removeAllListeners();
   }
 }

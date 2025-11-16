@@ -1,0 +1,36 @@
+name: E2E Chat Flow
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies (root)
+        working-directory: ./neuroswarm
+        run: npm ci
+      - name: Install dependencies (neuro-services)
+        working-directory: ./neuro-services
+        run: npm ci
+      - name: Install dependencies (neuro-web)
+        working-directory: ./neuro-web
+        run: npm ci
+      - name: Build shared & gateway & web
+        run: |
+          cd neuro-shared && npm run build
+          cd ../neuro-services && npm run build
+          cd ../neuro-web && npm run build
+      - name: Run unit tests with open-handle detection
+        working-directory: ./neuro-services
+        run: npm test -- --runInBand --detectOpenHandles
+      - name: Run e2e tests
+        working-directory: ./neuro-services
+        run: npm test -- tests/e2e-chat.test.ts --runInBand

@@ -35,7 +35,7 @@ jobs:
         working-directory: ./neuro-services
         env:
           GATEWAY_URLS: "http://localhost:4301,http://localhost:4302"
-        run: npm test -- tests/e2e-chat.test.ts tests/multi-gateway.test.ts tests/pos-e2e.test.ts tests/pos-reorg.test.ts tests/pos-reorg-extended.test.ts tests/pos-equivocation.test.ts tests/ed25519-signature.test.ts tests/ed25519-invalid-sign.test.ts --runInBand
+        run: npm test -- tests/e2e-chat.test.ts tests/multi-gateway.test.ts tests/pos-e2e.test.ts tests/pos-reorg.test.ts tests/pos-reorg-extended.test.ts tests/pos-long-range.test.ts tests/pos-equivocation.test.ts tests/pos-multi-equivocation.test.ts tests/ed25519-signature.test.ts tests/ed25519-invalid-sign.test.ts --runInBand
       - name: Dump ns-node gateways debug (for traceability)
         working-directory: ./neuro-services
         run: |

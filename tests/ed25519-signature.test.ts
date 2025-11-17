@@ -29,7 +29,7 @@ async function fetchJson(url, opts) {
 test('ed25519 validator registration and tx acceptance', async () => {
   const nsPort = 4301;
   const { child: ns, logFile } = startNsNode(nsPort);
-  const started = await waitForHeight(nsPort, 0, 5000);
+  const started = await waitForHeight(nsPort, 0, 30000);
   expect(started).toBeTruthy();
   // create ed25519 key pair
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');

@@ -14,28 +14,30 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install dependencies (root)
+      - name: Install dependencies (root) (pnpm)
         working-directory: ./neuroswarm
-        run: npm ci
-      - name: Install dependencies (neuro-services)
-        working-directory: ./neuro-services
-        run: npm ci
-      - name: Install dependencies (neuro-web)
-        working-directory: ./neuro-web
-        run: npm ci
-      - name: Build shared & gateway & web
         run: |
-          cd neuro-shared && npm run build
-          cd ../neuro-services && npm run build
-          cd ../neuro-web && npm run build
+          npm install -g pnpm@8
+          pnpm install -w
+      - name: Install dependencies (neuro-services) (pnpm)
+        working-directory: ./neuro-services
+        run: pnpm -C neuro-services install --frozen-lockfile
+      - name: Install dependencies (neuro-web) (pnpm)
+        working-directory: ./neuro-web
+        run: pnpm -C neuro-web install --frozen-lockfile
+      - name: Build shared & gateway & web (pnpm)
+        run: |
+          pnpm -C neuro-shared build
+          pnpm -C neuro-services build
+          pnpm -C neuro-web build
       - name: Run unit tests with open-handle detection
         working-directory: ./neuro-services
-        run: npm test -- --runInBand --detectOpenHandles
+        run: pnpm -C neuro-services test -- --runInBand --detectOpenHandles
       - name: Run e2e tests
         working-directory: ./neuro-services
         env:
           GATEWAY_URLS: "http://localhost:4301,http://localhost:4302"
-        run: npm test -- tests/e2e-chat.test.ts tests/multi-gateway.test.ts tests/pos-e2e.test.ts tests/pos-reorg.test.ts tests/pos-reorg-extended.test.ts tests/pos-long-range.test.ts tests/pos-equivocation.test.ts tests/pos-multi-equivocation.test.ts tests/ed25519-signature.test.ts tests/ed25519-invalid-sign.test.ts --runInBand
+        run: pnpm -C neuro-services test -- tests/e2e-chat.test.ts tests/multi-gateway.test.ts tests/pos-e2e.test.ts tests/pos-reorg.test.ts tests/pos-reorg-extended.test.ts tests/pos-long-range.test.ts tests/pos-equivocation.test.ts tests/pos-multi-equivocation.test.ts tests/ed25519-signature.test.ts tests/ed25519-invalid-sign.test.ts --runInBand
       - name: Dump ns-node gateways debug (for traceability)
         working-directory: ./neuro-services
         run: |

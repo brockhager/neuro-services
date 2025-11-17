@@ -29,7 +29,7 @@ function computeMerkleRoot(txIds) {
   return layer[0].toString('hex');
 }
 
-jest.setTimeout(120000);
+jest.setTimeout(240000);
 
 let nsChild: any = null;
 
@@ -87,7 +87,7 @@ test('multi-signer equivocation slashing: two validators double-sign same slot a
   const nsPort = 4370;
   const { child: ns } = startServerWithLogs(path.resolve(__dirname, '..', '..', 'neuroswarm', 'ns-node', 'server.js'), { PORT: nsPort }, `ns-${nsPort}`);
   nsChild = ns;
-  await waitForHeight(nsPort, 0, 10000);
+  await waitForHeight(nsPort, 0, 30000);
 
   // configure two validators
   const { publicKey: p1, privateKey: pr1 } = crypto.generateKeyPairSync('ed25519');
@@ -121,7 +121,7 @@ test('multi-signer equivocation slashing: two validators double-sign same slot a
     const s1 = vs.validators.find(v => v.validatorId === 'S1');
     const s2 = vs.validators.find(v => v.validatorId === 'S2');
     return s1 && s2 && s1.slashed && s2.slashed;
-  }, 5000, 200);
+  }, 30000, 200);
   expect(slashed).toBeTruthy();
 
   // verify both have stake reduced

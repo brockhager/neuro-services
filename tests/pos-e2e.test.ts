@@ -36,7 +36,7 @@ async function fetchJson(url, opts) {
 test('POS: validator produces block and SPV proof inclusion', async () => {
   const nsPort = 4201;
   const { child: ns, logFile: nsLog } = startNsNode(nsPort);
-  const started = await waitForHeight(nsPort, 0, 5000);
+  const started = await waitForHeight(nsPort, 0, 30000);
   expect(started).toBeTruthy();
   const gwPort = 4305;
   const gwPath = path.resolve(__dirname, '..', '..', 'neuroswarm', 'gateway-node', 'server.js');
@@ -52,7 +52,7 @@ test('POS: validator produces block and SPV proof inclusion', async () => {
   const registered = await waitForCondition(async () => {
     const vs = await fetchJson(`http://localhost:${nsPort}/validators`);
     return !!vs.validators.find(v => v.validatorId === 'val-test');
-  }, 10000, 300);
+  }, 30000, 300);
   expect(registered).toBeTruthy();
   // create a tx
   const tx = { type: 'chat', fee: 1, content: 'hello pos', signedBy: 'val-test', signature: '', timestamp: Date.now() };

@@ -638,7 +638,7 @@ app.get("/v1/communication/channels/:peerId", authenticate, async (req, res) => 
 
 // Chat handler: forward to neuro-runner (AI Bridge)
 app.post('/v1/chat', authenticate, async (req, res) => {
-  const runnerUrl = process.env.RUNNER_URL || 'http://localhost:3002';
+  const runnerUrl = (process.env.RUNNER_URL || 'http://localhost:3008').trim();
   try {
     const { content, model } = req.body;
     const user = (req as any).user;
@@ -692,9 +692,10 @@ app.post('/v1/adapter/query', authenticate, async (req, res) => {
 
     console.log(`[ADAPTER] Querying adapter: ${adapter} with params:`, params);
 
-    // Import the sources module dynamically
-    const sourcesPath = '../../neuroswarm/sources/index.js';
-    const sources = await import(sourcesPath);
+    // Import the sources module from neuroswarm using relative path from dist/
+    // When compiled, this file is at dist/index.js, so ../../neuroswarm/sources/index.js works
+    // @ts-ignore - sources module is pure JS
+    const sources = await import('../../neuroswarm/sources/index.js');
 
     // Query the adapter
     const result = await sources.queryAdapter(adapter, params || {});

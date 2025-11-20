@@ -157,6 +157,7 @@ app.use((req, res, next) => {
 
 // Auth middleware
 const authenticate = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.log(`[AUTH] Headers for ${req.path}:`, JSON.stringify(req.headers));
   const token = req.header("Authorization")?.replace("Bearer ", "");
   if (!token) {
     console.log(`[AUTH] Access denied: missing token from ${req.ip} for ${req.path}`);
@@ -632,62 +633,85 @@ app.get("/v1/communication/channels/:peerId", authenticate, async (req, res) => 
   }
 });
 
-// Chat proxy: forward chat requests to a local ns-node runtime if configured
+// Chat handler: forward to neuro-runner (AI Bridge)
 app.post('/v1/chat', authenticate, async (req, res) => {
-  const nsNodeUrl = process.env.NS_NODE_URL || 'http://localhost:3000';
+  const runnerUrl = process.env.RUNNER_URL || 'http://localhost:3002';
   try {
-    // Forward POST /chat to the local ns-node runtime
-    const forwardHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'X-Forwarded-For': req.ip || '',
-      'X-Forwarded-User': (req as any).user?.username || ''
-    };
-    if (req.header('authorization')) {
-      forwardHeaders['Authorization'] = req.header('authorization') as string;
-    }
-    const forwardRes = await fetch(`${nsNodeUrl}/chat`, {
+    const { content, model } = req.body;
+    const user = (req as any).user;
+
+    console.log(`[CHAT] Forwarding message from ${user.username} to runner at ${runnerUrl}`);
+
+    const runnerRes = await fetch(`${runnerUrl}/chat`, {
       method: 'POST',
-      headers: forwardHeaders as any,
-      body: JSON.stringify(req.body)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, model })
     });
 
-    // Audit log for forwarded request and headers
-    // Log a masked authorization header to avoid leaking tokens (only show prefix)
-    const authHeader = req.header('authorization') as string | undefined;
-    const maskedAuth = authHeader ? `${authHeader.substring(0, 7)}...` : '';
-    console.log(`[CHAT_PROXY] Forwarded /v1/chat from ${req.ip} as ${(req as any).user?.username} to ${nsNodeUrl} auth=${maskedAuth}`);
+    if (!runnerRes.ok) {
+      const errorText = await runnerRes.text();
+      console.error(`[CHAT] Runner error: ${errorText}`);
+      return res.status(runnerRes.status).json({ error: 'AI processing failed', detail: errorText });
+    }
 
-    const body = await forwardRes.json();
-    return res.status(forwardRes.status).json(body);
+    const data = await runnerRes.json();
+    return res.json(data);
+
   } catch (err: any) {
-    console.error('Chat proxy error:', err);
-    return res.status(502).json({ error: 'Failed to reach local chat runtime', detail: err?.message });
+    console.error('Chat error:', err);
+    return res.status(500).json({ error: 'Internal server error', detail: err?.message });
   }
 });
 
-// Chat history route proxy
+// Chat history route
 app.get('/v1/chat/history', authenticate, async (req, res) => {
-  const nsNodeUrl = process.env.NS_NODE_URL || 'http://localhost:3000';
   try {
-    const forwardHeaders: Record<string, string> = {
-      'X-Forwarded-For': req.ip || '',
-      'X-Forwarded-User': (req as any).user?.username || ''
-    };
-    if (req.header('authorization')) {
-      forwardHeaders['Authorization'] = req.header('authorization') as string;
+    // Return mock history
+    const history = [
+      { sender: 'system', content: 'Welcome to NeuroSwarm. System online.', timestamp: Date.now() - 100000 },
+      { sender: 'ai', content: 'Hello! I am ready to assist you.', timestamp: Date.now() - 50000 }
+    ];
+    return res.json(history);
+  } catch (err: any) {
+    console.error('Chat history error:', err);
+    return res.status(500).json({ error: 'Internal server error', detail: err?.message });
+  }
+});
+
+// Data adapter query endpoint - for real-time data (NBA scores, weather, etc.)
+app.post('/v1/adapter/query', authenticate, async (req, res) => {
+  try {
+    const { adapter, params } = req.body;
+
+    if (!adapter) {
+      return res.status(400).json({ error: 'Adapter name required' });
     }
-    const forwardRes = await fetch(`${nsNodeUrl}/history`, {
-      headers: forwardHeaders as any
+
+    console.log(`[ADAPTER] Querying adapter: ${adapter} with params:`, params);
+
+    // Import the sources module dynamically
+    const sourcesPath = '../../neuroswarm/sources/index.js';
+    const sources = await import(sourcesPath);
+
+    // Query the adapter
+    const result = await sources.queryAdapter(adapter, params || {});
+
+    console.log(`[ADAPTER] Result from ${adapter}:`, result);
+
+    return res.json({
+      success: true,
+      adapter,
+      data: result,
+      timestamp: new Date().toISOString()
     });
 
-    const maskedAuthHistory = req.header('authorization') ? `${(req.header('authorization') as string).substring(0, 7)}...` : '';
-    console.log(`[CHAT_PROXY] Forwarded /v1/chat/history from ${req.ip} as ${(req as any).user?.username} to ${nsNodeUrl} auth=${maskedAuthHistory}`);
-
-    const body = await forwardRes.json();
-    return res.status(forwardRes.status).json(body);
   } catch (err: any) {
-    console.error('Chat history proxy error:', err);
-    return res.status(502).json({ error: 'Failed to reach local chat runtime', detail: err?.message });
+    console.error('Adapter query error:', err);
+    return res.status(500).json({
+      error: 'Adapter query failed',
+      detail: err?.message,
+      adapter: req.body?.adapter
+    });
   }
 });
 

@@ -124,6 +124,9 @@ const app = express();
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "default-secret";
 
+// Trust proxy - needed for rate limiting behind proxies
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet());
 app.use(cors());

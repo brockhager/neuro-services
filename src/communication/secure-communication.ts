@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
-import { AgentRegistry } from '../agent-registry/index';
+import { AgentRegistry } from '../agent-registry/index.js';
 
 export interface SecureChannel {
   peerId: string;

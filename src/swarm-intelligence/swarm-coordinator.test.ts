@@ -1,6 +1,6 @@
-import { SwarmCoordinator, SwarmTask } from './swarm-coordinator';
-import { SecureCommunicationFramework } from '../communication';
-import { AgentRegistry, AgentCategory } from '../agent-registry/index';
+import { SwarmCoordinator, SwarmTask } from './swarm-coordinator.js';
+import { SecureCommunicationFramework } from '../communication/index.js';
+import { AgentRegistry, AgentCategory } from '../agent-registry/index.js';
 
 describe('Swarm Coordinator Integration', () => {
   let registry: AgentRegistry;

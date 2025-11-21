@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { SecureCommunicationFramework, SecureMessage } from '../communication';
-import { AgentRegistry } from '../agent-registry/index';
+import { SecureCommunicationFramework, SecureMessage } from '../communication/index.js';
+import { AgentRegistry } from '../agent-registry/index.js';
 
 export interface FundingProposal {
   id: string;

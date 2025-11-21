@@ -2,8 +2,8 @@ import {
   SecureCommunicationFramework,
   SecureChannel,
   SecureMessage
-} from './index';
-import { AgentRegistry } from '../agent-registry/index';
+} from './index.js';
+import { AgentRegistry } from '../agent-registry/index.js';
 
 describe('Secure Communication Framework', () => {
   let registry: AgentRegistry;

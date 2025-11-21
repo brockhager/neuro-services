@@ -1,6 +1,6 @@
-import { TokenomicsEngine, FundingProposal, Contribution } from './tokenomics-engine';
-import { SecureCommunicationFramework } from '../communication';
-import { AgentRegistry } from '../agent-registry/index';
+import { TokenomicsEngine, FundingProposal, Contribution } from './tokenomics-engine.js';
+import { SecureCommunicationFramework } from '../communication/index.js';
+import { AgentRegistry } from '../agent-registry/index.js';
 
 describe('Tokenomics Engine Integration', () => {
   let registry: AgentRegistry;

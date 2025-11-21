@@ -6,7 +6,7 @@ import {
   AgentMetadata,
   AgentCategory,
   DiscoveryQuery
-} from './index';
+} from './index.js';
 
 describe('Agent Registry and Discovery', () => {
   let registry: AgentRegistry;

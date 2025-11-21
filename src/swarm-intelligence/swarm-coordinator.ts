@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { SecureCommunicationFramework } from '../communication';
-import { AgentRegistry } from '../agent-registry/index';
+import { SecureCommunicationFramework } from '../communication/index.js';
+import { AgentRegistry } from '../agent-registry/index.js';
 
 export interface SwarmTask {
   id: string;

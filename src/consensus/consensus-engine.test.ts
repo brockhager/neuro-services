@@ -1,6 +1,6 @@
-import { ConsensusEngine, ConsensusProposal, ConsensusVote } from './consensus-engine';
-import { SecureCommunicationFramework } from '../communication';
-import { AgentRegistry } from '../agent-registry/index';
+import { ConsensusEngine, ConsensusProposal, ConsensusVote } from './consensus-engine.js';
+import { SecureCommunicationFramework } from '../communication/index.js';
+import { AgentRegistry } from '../agent-registry/index.js';
 
 describe('Consensus Engine Integration', () => {
   let registry: AgentRegistry;

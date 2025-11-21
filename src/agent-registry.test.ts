@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 
-import { AgentRegistryService } from './agent-registry';
+import { AgentRegistryService } from './agent-registry.js';
 import {
   AgentRegistrationRequest,
   AgentDiscoveryQuery,
@@ -8,7 +8,7 @@ import {
   AgentStatus,
   AgentCategory,
   REGISTRATION_TIMEOUT
-} from './agent-protocol-types';
+} from './agent-protocol-types.js';
 
 describe('AgentRegistryService', () => {
   let registry: AgentRegistryService;

@@ -14,6 +14,7 @@ import { SecureCommunicationFramework } from "./communication/index.js";
 import { ConsensusEngine } from "./consensus/consensus-engine.js";
 import { TokenomicsEngine } from "./tokenomics/tokenomics-engine.js";
 import { SwarmCoordinator } from "./swarm-intelligence/swarm-coordinator.js";
+import { LearningService } from "./learning/learning-service.js";
 
 interface User {
   username: string;
@@ -114,6 +115,10 @@ const tokenomicsEngine = new TokenomicsEngine(secureCommunication, agentRegistry
 
 // Swarm Intelligence Coordinator (Feature 7)
 const swarmCoordinator = new SwarmCoordinator(secureCommunication, agentRegistryCore);
+const learningService = new LearningService();
+learningService.ingestLogs().then(() => learningService.generateEmbeddings()).catch(err => {
+  console.error('Unable to bootstrap learning service', err);
+});
 
 // Periodic cleanup of inactive agents (keep handle to clear on shutdown)
 let agentRegistryCleanupInterval: NodeJS.Timeout | null = null;
@@ -1025,6 +1030,42 @@ app.get("/v1/swarm/metrics", authenticate, (req, res) => {
   } catch (error) {
     console.error('Swarm metrics error:', error);
     res.status(500).json({ error: 'Failed to get swarm metrics' });
+  }
+});
+
+app.post('/learning/reload', async (_req, res) => {
+  try {
+    await learningService.ingestLogs();
+    await learningService.generateEmbeddings();
+    res.json({ status: 'reloaded' });
+  } catch (error) {
+    console.error('Learning reload error:', error);
+    res.status(500).json({ error: 'Failed to reload learning artifacts' });
+  }
+});
+
+app.post('/learning/recommend', async (req, res) => {
+  const { query } = req.body || {};
+  if (!query) {
+    return res.status(400).json({ error: 'query_required' });
+  }
+
+  try {
+    const result = await learningService.getRecommendations(query);
+    res.json(result);
+  } catch (error) {
+    console.error('Learning recommendation error:', error);
+    res.status(500).json({ error: 'Failed to build recommendation' });
+  }
+});
+
+app.get('/learning/gaps', (_req, res) => {
+  try {
+    const gaps = learningService.identifyKnowledgeGaps();
+    res.json({ gaps });
+  } catch (error) {
+    console.error('Learning gap inspection error:', error);
+    res.status(500).json({ error: 'Failed to enumerate gaps' });
   }
 });
 

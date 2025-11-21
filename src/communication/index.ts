@@ -1,5 +1,5 @@
-export {
-  SecureCommunicationFramework,
+export { SecureCommunicationFramework } from './secure-communication.js';
+export type {
   SecureChannel,
   SecureMessage,
   EncryptedPayload,

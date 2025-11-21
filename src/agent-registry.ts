@@ -10,7 +10,7 @@ import {
   AgentCapabilities,
   HEARTBEAT_INTERVAL,
   REGISTRATION_TIMEOUT
-} from './agent-protocol-types';
+} from './agent-protocol-types.js';
 
 interface StoredAgent extends AgentMetadata {
   // Internal fields for agent management

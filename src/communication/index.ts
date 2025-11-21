@@ -5,4 +5,4 @@ export {
   EncryptedPayload,
   CommunicationMetrics,
   DeliveryReceipt
-} from './secure-communication';
+} from './secure-communication.js';

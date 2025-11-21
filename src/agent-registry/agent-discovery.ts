@@ -1,4 +1,4 @@
-import { AgentRegistry, DiscoveryQuery, DiscoveryResult, AgentRegistration, AgentCategory } from './agent-registry';
+import { AgentRegistry, DiscoveryQuery, DiscoveryResult, AgentRegistration, AgentCategory } from './agent-registry.js';
 
 export interface DiscoveryCache {
   query: DiscoveryQuery;

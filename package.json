@@ -2,6 +2,7 @@
   "name": "neuro-services",
   "version": "1.0.0",
   "description": "A collection of microservices for the Neuro platform",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -69,7 +70,11 @@
       "!src/**/*.test.ts",
       "!src/**/*.d.ts"
     ],
-    "coverageReporters": ["text", "lcov", "html"],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
     "coverageDirectory": "coverage"
   }
 }

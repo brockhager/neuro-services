@@ -4,13 +4,16 @@ import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
+import path from "path";
+import { fileURLToPath } from "url";
 import { collectDefaultMetrics, register, Counter, Histogram } from "prom-client";
-import { AgentRegistryService } from "./agent-registry";
-import { AgentRegistry, AgentDiscoveryService, AgentCategory, DiscoveryQuery } from "./agent-registry/index";
-import { SecureCommunicationFramework } from "./communication";
-import { ConsensusEngine } from "./consensus/consensus-engine";
-import { TokenomicsEngine } from "./tokenomics/tokenomics-engine";
-import { SwarmCoordinator } from "./swarm-intelligence/swarm-coordinator";
+import { AgentRegistryService } from "./agent-registry.js";
+import { AgentRegistry, AgentDiscoveryService, DiscoveryQuery } from "./agent-registry/index.js";
+import { AgentCategory } from "./agent-registry/agent-registry.js";
+import { SecureCommunicationFramework } from "./communication/index.js";
+import { ConsensusEngine } from "./consensus/consensus-engine.js";
+import { TokenomicsEngine } from "./tokenomics/tokenomics-engine.js";
+import { SwarmCoordinator } from "./swarm-intelligence/swarm-coordinator.js";
 
 interface User {
   username: string;
@@ -121,7 +124,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3007;
 const JWT_SECRET = process.env.JWT_SECRET || "default-secret";
 
 // Trust proxy - needed for rate limiting behind proxies
@@ -636,15 +639,18 @@ app.get("/v1/communication/channels/:peerId", authenticate, async (req, res) => 
   }
 });
 
-// Chat handler: forward to neuro-runner (AI Bridge)
+// Chat handler: forward to neuro-runner (AI Bridge) and sync with ns-node
 app.post('/v1/chat', authenticate, async (req, res) => {
   const runnerUrl = (process.env.RUNNER_URL || 'http://localhost:3008').trim();
+  const nsNodeUrl = (process.env.NS_NODE_URL || 'http://localhost:3009').trim();
+
   try {
     const { content, model } = req.body;
     const user = (req as any).user;
 
     console.log(`[CHAT] Forwarding message from ${user.username} to runner at ${runnerUrl}`);
 
+    // 1. Forward to AI Runner
     const runnerRes = await fetch(`${runnerUrl}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -657,7 +663,41 @@ app.post('/v1/chat', authenticate, async (req, res) => {
       return res.status(runnerRes.status).json({ error: 'AI processing failed', detail: errorText });
     }
 
-    const data = await runnerRes.json();
+    const data = await runnerRes.json() as any;
+
+    // 2. Sync with NS Node History (Fire and Forget)
+    (async () => {
+      try {
+        // Archive User Message
+        await fetch(`${nsNodeUrl}/history/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sender: user.username,
+            content: content,
+            direction: 'in',
+            timestamp: new Date().toISOString()
+          })
+        });
+
+        // Archive AI Response
+        if (data.content) {
+          await fetch(`${nsNodeUrl}/history/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sender: 'ai',
+              content: data.content,
+              direction: 'out',
+              timestamp: new Date().toISOString()
+            })
+          });
+        }
+      } catch (syncErr) {
+        console.error('[CHAT] Failed to sync history with NS Node:', syncErr);
+      }
+    })();
+
     return res.json(data);
 
   } catch (err: any) {
@@ -692,10 +732,20 @@ app.post('/v1/adapter/query', authenticate, async (req, res) => {
 
     console.log(`[ADAPTER] Querying adapter: ${adapter} with params:`, params);
 
-    // Import the sources module from neuroswarm using relative path from dist/
-    // When compiled, this file is at dist/index.js, so ../../neuroswarm/sources/index.js works
+    // Import the sources module from neuroswarm using proper path resolution
+    // Use fileURLToPath and path.resolve to ensure correct path from compiled dist/
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const sourcesPath = path.resolve(__dirname, '../../neuroswarm/sources/index.js');
+
+    console.log(`[ADAPTER] Loading sources from: ${sourcesPath}`);
+
+    // Convert Windows path to file:// URL for ES module import
+    const { pathToFileURL } = await import('url');
+    const sourcesURL = pathToFileURL(sourcesPath).href;
+
     // @ts-ignore - sources module is pure JS
-    const sources = await import('../../neuroswarm/sources/index.js');
+    const sources = await import(sourcesURL);
 
     // Query the adapter
     const result = await sources.queryAdapter(adapter, params || {});

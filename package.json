@@ -4,8 +4,14 @@
   "description": "A collection of microservices for the Neuro platform",
   "type": "module",
   "main": "dist/index.js",
+  "bin": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "bundle": "esbuild dist/index.js --bundle --platform=node --format=cjs --outfile=dist/bundle.js --external:chromadb",
+    "build:bin": "npm run build && npm run bundle && npm run build:win && npm run build:linux && npm run build:mac",
+    "build:win": "pkg dist/bundle.js --target node18-win-x64 --output ../neuroswarm/dist/ns-node-server-win-x64.exe",
+    "build:linux": "pkg dist/bundle.js --target node18-linux-x64 --output ../neuroswarm/dist/ns-node-server-linux-x64",
+    "build:mac": "pkg dist/bundle.js --target node18-macos-x64 --output ../neuroswarm/dist/ns-node-server-macos-x64",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "test": "jest",
@@ -19,6 +25,18 @@
     "monitoring:start": "docker-compose -f docker-compose.monitoring.yml up -d",
     "monitoring:stop": "docker-compose -f docker-compose.monitoring.yml down",
     "ci:full": "npm run lint && npm run build && npm run test:ci && npm run test:race"
+  },
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "assets": [
+      "node_modules/**/*"
+    ],
+    "targets": [
+      "node18-win-x64",
+      "node18-linux-x64",
+      "node18-macos-x64"
+    ],
+    "outputPath": "../neuroswarm/dist"
   },
   "keywords": [
     "microservices",
@@ -38,9 +56,11 @@
     "@types/supertest": "^2.0.16",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "esbuild": "^0.27.0",
     "eslint": "^8.0.0",
     "jest": "^29.0.0",
     "jest-junit": "^16.0.0",
+    "pkg": "^5.8.1",
     "prettier": "^3.0.0",
     "supertest": "^6.3.3",
     "ts-jest": "^29.0.0",

@@ -1,64 +1,14 @@
 import { EventEmitter } from 'events';
 import { SecureCommunicationFramework } from '../communication/index.js';
 import { AgentRegistry } from '../agent-registry/index.js';
-
-export interface SwarmTask {
-  id: string;
-  description: string;
-  requirements: TaskRequirement[];
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  deadline?: Date;
-  dependencies: string[];
-  estimatedDuration: number; // milliseconds
-  maxConcurrentAgents: number;
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'failed';
-  createdAt: Date;
-  assignedAgents: string[];
-  progress: number; // 0-100
-}
-
-export interface TaskRequirement {
-  capability: string;
-  minPerformance: number;
-  quantity: number;
-}
-
-export interface Agent {
-  id: string;
-  capabilities: string[];
-  currentLoad: number;
-  reputation: number;
-  lastActive: Date;
-  status: 'idle' | 'busy' | 'offline';
-}
-
-export interface TaskAllocation {
-  taskId: string;
-  agentId: string;
-  role: 'primary' | 'secondary' | 'coordinator';
-  assignedAt: Date;
-  expectedCompletion: Date;
-}
-
-export interface CoordinationMessage {
-  type: 'task_offer' | 'task_acceptance' | 'task_rejection' | 'progress_update' | 'coordination_request';
-  taskId: string;
-  agentId: string;
-  payload: any;
-  timestamp: Date;
-  priority: number;
-}
-
-export interface SwarmMetrics {
-  totalTasks: number;
-  activeTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  averageTaskDuration: number;
-  agentUtilization: number;
-  coordinationEfficiency: number;
-  lastUpdate: Date;
-}
+import {
+  SwarmTask,
+  TaskRequirement,
+  Agent,
+  TaskAllocation,
+  CoordinationMessage,
+  SwarmMetrics
+} from './types.js';
 
 /**
  * Swarm Intelligence Coordination Engine
@@ -66,8 +16,8 @@ export interface SwarmMetrics {
  */
 export class SwarmCoordinator extends EventEmitter {
   private tasks: Map<string, SwarmTask> = new Map();
-    private coordinationIntervalHandle: NodeJS.Timeout | null = null;
-    private onMessageHandler: ((message: any) => void) | null = null;
+  private coordinationIntervalHandle: NodeJS.Timeout | null = null;
+  private onMessageHandler: ((message: any) => void) | null = null;
   private allocations: Map<string, TaskAllocation[]> = new Map();
   private agentStates: Map<string, Agent> = new Map();
   private coordinationHistory: CoordinationMessage[] = [];
@@ -114,6 +64,44 @@ export class SwarmCoordinator extends EventEmitter {
 
     this.emit('taskRegistered', fullTask);
     return taskId;
+  }
+
+  /**
+   * Register a new node (e.g., a NS node coming online).
+   * This creates an entry in the internal agentStates map so the GW can track it.
+   * @param nodeId Unique identifier for the node.
+   * @param capabilities List of capability strings the node supports.
+   */
+  public registerNode(nodeId: string, capabilities: string[] = []): void {
+    if (this.agentStates.has(nodeId)) {
+      // Node already known – just update capabilities and mark as idle
+      const existing = this.agentStates.get(nodeId)!;
+      existing.capabilities = capabilities;
+      existing.status = 'idle';
+      existing.lastActive = new Date();
+      return;
+    }
+    const newNode: Agent = {
+      id: nodeId,
+      capabilities,
+      currentLoad: 0,
+      reputation: 1.0, // default good reputation
+      lastActive: new Date(),
+      status: 'idle'
+    };
+    this.agentStates.set(nodeId, newNode);
+  }
+
+  /**
+   * Check if a node is connected (active within the last maxStaleMs milliseconds).
+   * @param nodeId Unique identifier for the node.
+   * @param maxStaleMs Maximum time in milliseconds since last activity to consider connected.
+   */
+  public isNodeConnected(nodeId: string, maxStaleMs: number = 30000): boolean {
+    const agent = this.agentStates.get(nodeId);
+    if (!agent) return false;
+    const timeSinceLastActive = Date.now() - agent.lastActive.getTime();
+    return timeSinceLastActive <= maxStaleMs;
   }
 
   /**

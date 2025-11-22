@@ -96,9 +96,9 @@ class ChromaVectorStore implements VectorStore {
   async similaritySearch(vector: number[], k: number): Promise<VectorSearchResult[]> {
     const collection = await this.collection();
     const result = await collection.query({ queryEmbeddings: [vector], nResults: k });
-    const ids = result.ids?.[0] || [];
-    const distances = result.distances?.[0] || [];
-    const metadatas = result.metadatas?.[0] || [];
+    const ids = (result.ids?.[0] || []) as string[];
+    const distances = (result.distances?.[0] || []) as number[];
+    const metadatas = (result.metadatas?.[0] || []) as Record<string, any>[];
 
     return ids.map((_, idx) => ({
       score: 1 - (distances[idx] ?? 0),

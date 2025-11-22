@@ -1,4 +1,5 @@
-import { SwarmCoordinator, SwarmTask } from './swarm-coordinator.js';
+import { SwarmCoordinator } from './swarm-coordinator.js';
+import { SwarmTask } from './types.js';
 import { SecureCommunicationFramework } from '../communication/index.js';
 import { AgentRegistry, AgentCategory } from '../agent-registry/index.js';
 

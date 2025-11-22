@@ -1,10 +1,7 @@
 name: E2E Chat Flow
 
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   e2e:

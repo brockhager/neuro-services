@@ -19,5 +19,20 @@ export function createChatRoutes() {
         ]);
     });
 
+    router.post("/v1/adapter/query", (req, res) => {
+        const { adapter, params } = req.body;
+
+        // Mock adapter response for Quick Actions
+        res.json({
+            success: true,
+            adapter: adapter,
+            data: {
+                results: [
+                    { title: "Mock Result", description: "This is a placeholder response. Adapter integration coming soon!" }
+                ]
+            }
+        });
+    });
+
     return router;
 }

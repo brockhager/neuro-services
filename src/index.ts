@@ -22,6 +22,8 @@ import { createAgentRoutes } from "./routes/agent-routes.js";
 import { createSwarmRoutes } from "./routes/swarm-routes.js";
 import { createConsensusRoutes } from "./routes/consensus-routes.js";
 import { createTokenomicsRoutes } from "./routes/tokenomics-routes.js";
+import { createAuthRoutes } from "./routes/auth-routes.js";
+import { createChatRoutes } from "./routes/chat-routes.js";
 
 // Types
 interface User { username: string; }
@@ -84,6 +86,8 @@ app.use("/agents", createAgentRoutes(agentRegistry));
 app.use("/swarm", createSwarmRoutes(swarmCoordinator, authenticate));
 app.use("/consensus", createConsensusRoutes(consensusEngine, secureCommunication, authenticate));
 app.use("/tokenomics", createTokenomicsRoutes(tokenomicsEngine, authenticate));
+app.use("/auth", createAuthRoutes());
+app.use("/", createChatRoutes());
 
 // Simple health endpoint
 app.get("/health", (req, res) => res.json({ status: "ok" }));
